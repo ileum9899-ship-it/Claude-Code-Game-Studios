@@ -25,3 +25,23 @@ framework:
 # here. `/settings --local <key>=<value>` writes there; `/settings <key>=<value>`
 # edits this file. See `.claude/docs/config-resolution.md` for the full
 # precedence order.
+
+project:
+  name: "Life RP"
+  genre: "Life Sim / RP"
+  version: "0.1.0"
+  stage: Pre-Production
+  kind: game
+
+engine:
+  name: "Unreal"
+  version: "5.8"
+  language: "C++"
+  rendering: "Lumen + Virtual Shadow Maps + TSR (MegaLights optional)"
+  physics: "Chaos"
+
+specialists:
+  code: "unreal-specialist"
+  shader: "technical-artist"
+  ui: "ue-umg-specialist"
+  additional: ["ue-blueprint-specialist", "ue-gas-specialist", "ue-replication-specialist"]
