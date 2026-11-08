@@ -16,7 +16,9 @@ It needs internet access for:
 |---|---|
 | Map tiles | `tile.openstreetmap.org` |
 | Place search | Nominatim (`nominatim.openstreetmap.org`) |
-| Building footprints, heights, roads, shops | Overpass API (`overpass-api.de`, with mirrors as fallback) |
+| Building footprints, heights, roads, shops, trees, parks | Overpass API (`overpass-api.de`, with mirrors as fallback) |
+| Satellite photo (ground + roofs) | Esri World Imagery (fallback: OSM map tiles) |
+| Terrain elevation | AWS Terrain Tiles (terrarium) |
 | Libraries | three.js r128, Leaflet 1.9.4 via cdnjs |
 
 If the building server can't be reached, or the spot has almost no mapped buildings,
@@ -30,23 +32,34 @@ pick **가상 동네로 시작** to start in one directly.
    (`height` / `building:levels`, or an estimate from the building type). The type comes
    from the OSM tags plus any shop/amenity nodes inside the footprint: convenience store,
    mart, pharmacy, hospital, police, school, hardware store, and so on. Each type has its own loot table and danger level.
-3. **Roadview (🚶 로드뷰)**: a first-person street-level view of the generated buildings
+3. **Making it look like the real place**
+   - The ground is the real **satellite photo** draped over **real terrain elevation**, so hills, roads, parking lots and parks sit where they really are.
+   - **Roofs** sample the same satellite photo, so each roof shows its real colour and rooftop clutter.
+   - **Walls** get procedural Korean-street facades chosen from the building type, `building:material` and `building:colour`: white apartment blocks with balcony windows, brick, beige or white villas, glass offices, schools, corrugated warehouses. Windows snap to whole bays per wall.
+   - **Ground-floor shops** get a glass storefront with Korean signboards (편의점, 약국, 마트, 치킨, 부동산 …), some with smashed glass or half-closed shutters.
+   - **Trees** come from OSM `natural=tree` nodes, and parks and woods are scattered with trees.
+   - At night a few windows stay lit (about 40% of buildings, only a few windows each).
+4. **Roadview (🚶 로드뷰)**: a first-person street-level view of the generated buildings
    (drag to look, WASD/arrow keys or the on-screen pad to walk, walls block movement). Click a building in any view to explore it.
-4. **Choose a base**, then each day:
+5. **Choose a base**, then each day:
    - a **morning event** card (rain, a stray dog, a trader, a crying child, raiders' toll, supply drone…)
    - **3 actions** (morning/afternoon/evening): explore a building (thorough vs quick), rest, fortify, craft a weapon, or heal
    - while exploring: zombie encounters (fight / flee / hide), survivors, locked storerooms, the police armory, the hospital isolation ward…
    - **night**: dinner for everyone, infection check, and a horde attack (strength vs defense)
-5. Survive **day 30's final night**: rescue ending. HP reaching 0 ends the game.
+6. Survive **day 30's final night**: rescue ending. HP reaching 0 ends the game.
 
 Stats: HP, fullness, hydration, sanity. Inventory: food, water, medicine, materials. Also defense, companions, a dog, a generator and weapon tiers (bare hands → shotgun).
 
-## Note on "road view"
+## Note on "road view" and photo-real walls
 
 Real street-level photos (Kakao/Naver Roadview, Google Street View) need API keys and
-forbid deriving 3D geometry from their imagery. So the prototype builds buildings from
-OpenStreetMap data, and "로드뷰" is a street-level camera inside that 3D town. A real
-roadview panel (e.g. Kakao Roadview with the player's own key) could be added as a reference picture.
+forbid deriving 3D geometry or textures from their imagery. So walls are procedural, while
+roofs and ground use satellite imagery whose terms allow display. "로드뷰" is a street-level
+camera inside the 3D town.
+
+A fully photographic town would need **Google Photorealistic 3D Tiles** (Map Tiles API key
+and billing, plus Google's attribution and display rules). It would be a separate render mode,
+because gameplay needs per-building click targets that photogrammetry meshes don't provide.
 
 ## Status
 

@@ -113,6 +113,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #rvPad button{height:46px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:18px;user-select:none;-webkit-user-select:none;touch-action:none}
 #hover{position:absolute;pointer-events:none;padding:7px 10px;font-size:12px;z-index:6;line-height:1.5;white-space:nowrap}
 #hover b{font-size:13px}
+#credit{position:absolute;right:10px;bottom:4px;font-size:10px;color:rgba(255,255,255,.55);z-index:4;text-shadow:0 1px 2px #000;pointer-events:none;text-align:right;max-width:60%}
 #minimapHint{position:absolute;left:10px;bottom:12px;font-size:11px;color:var(--muted);padding:6px 8px;z-index:4;max-width:230px}
 
 /* ---------- modal card ---------- */
@@ -166,6 +167,7 @@ button{font:inherit;color:inherit;cursor:pointer}
       <option value="250" selected>반경 250m</option>
       <option value="350">반경 350m (무거움)</option>
     </select>
+    <button class="btn" id="satBtn" type="button">🛰 위성</button>
     <button class="btn" id="fakeBtn">가상 동네로 시작</button>
     <button class="btn primary" id="startBtn" disabled>이 동네로 시작 ▶</button>
   </div>
@@ -199,6 +201,7 @@ button{font:inherit;color:inherit;cursor:pointer}
     <button data-k="l">◀</button><button data-k="b">▼</button><button data-k="r">▶</button>
   </div>
   <div id="hover" class="panel hidden"></div>
+  <div id="credit"></div>
   <div id="modal"><div id="card">
     <div id="cardTag"></div><h2 id="cardTitle"></h2><div id="cardText"></div><div id="cardChoices"></div>
   </div></div>
@@ -291,6 +294,9 @@ function initMap() {
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
   }).addTo(lmap);
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' });
+  $('#satBtn').onclick = () => { if (lmap.hasLayer(sat)) { sat.remove(); $('#satBtn').textContent = '🛰 위성'; } else { sat.addTo(lmap); $('#satBtn').textContent = '🗺 지도'; } };
   lmap.on('click', e => pick(e.latlng.lat, e.latlng.lng, null));
   setTimeout(() => lmap.invalidateSize(), 100);
 }
@@ -358,7 +364,8 @@ $('#fakeBtn').onclick = () => loadNeighborhood(null);
    ========================================================================= */
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 async function fetchOSM(lat, lon, r) {
-  const q = `[out:json][timeout:30];(way["building"](around:${r},${lat},${lon});way["highway"](around:${r + 60},${lat},${lon});node["amenity"](around:${r},${lat},${lon});node["shop"](around:${r},${lat},${lon}););out geom;`;
+  const a = `(around:${r},${lat},${lon})`;
+  const q = `[out:json][timeout:40];(way["building"]${a};relation["building"]${a};way["highway"](around:${r + 60},${lat},${lon});node["amenity"]${a};node["shop"]${a};node["natural"="tree"]${a};way["leisure"~"^(park|garden|playground)$"]${a};way["landuse"~"^(grass|forest|recreation_ground|village_green|meadow)$"]${a};way["natural"~"^(wood|scrub)$"]${a};);out geom;`;
   let lastErr;
   for (const url of OVERPASS) {
     const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 35000);
@@ -389,18 +396,32 @@ const ROAD_W = { motorway: 18, trunk: 16, primary: 14, secondary: 11, tertiary: 
 function worldFromOSM(data, lat0, lon0, r) {
   const k = Math.cos(lat0 * Math.PI / 180);
   const P = (la, lo) => [(lo - lon0) * 111320 * k, -(la - lat0) * 110574];
-  const buildings = [], roads = [], pois = [];
+  const buildings = [], roads = [], pois = [], trees = [], greens = [];
+  const ring = geom => {
+    const pts = geom.map(g => P(g.lat, g.lon));
+    const f = pts[0], l = pts[pts.length - 1];
+    if (pts.length > 1 && Math.abs(f[0] - l[0]) < .01 && Math.abs(f[1] - l[1]) < .01) pts.pop();
+    return pts;
+  };
+  const addBuilding = (id, pts, t) => {
+    if (pts.length < 3) return;
+    const area = polyArea(pts); if (area < 12) return;
+    buildings.push({ id, pts, tags: t, area, c: centroid(pts) });
+  };
   for (const el of data.elements || []) {
     const t = el.tags || {};
     if (el.type === 'way' && t.building && el.geometry && el.geometry.length >= 4) {
-      const pts = el.geometry.map(g => P(g.lat, g.lon));
-      const f = pts[0], l = pts[pts.length - 1];
-      if (Math.abs(f[0] - l[0]) < .01 && Math.abs(f[1] - l[1]) < .01) pts.pop();
-      if (pts.length < 3) continue;
-      const area = polyArea(pts); if (area < 12) continue;
-      buildings.push({ id: 'w' + el.id, pts, tags: t, area, c: centroid(pts) });
+      addBuilding('w' + el.id, ring(el.geometry), t);
+    } else if (el.type === 'relation' && t.building && el.members) {
+      // multipolygon buildings (common for apartment complexes): use the outer rings
+      el.members.filter(m => m.role === 'outer' && m.geometry && m.geometry.length >= 4)
+        .forEach((m, i) => addBuilding(`r${el.id}_${i}`, ring(m.geometry), t));
     } else if (el.type === 'way' && t.highway && el.geometry && ROAD_W[t.highway]) {
       roads.push({ pts: el.geometry.map(g => P(g.lat, g.lon)), w: +t.width || ROAD_W[t.highway], kind: t.highway });
+    } else if (el.type === 'way' && el.geometry && el.geometry.length >= 4 && (t.leisure || t.landuse || t.natural)) {
+      const pts = ring(el.geometry); if (pts.length >= 3) greens.push({ pts, kind: t.leisure || t.landuse || t.natural, area: polyArea(pts) });
+    } else if (el.type === 'node' && t.natural === 'tree') {
+      trees.push(P(el.lat, el.lon));
     } else if (el.type === 'node' && (t.amenity || t.shop)) {
       const [x, z] = P(el.lat, el.lon); pois.push({ x, z, tags: t });
     }
@@ -417,7 +438,103 @@ function worldFromOSM(data, lat0, lon0, r) {
     if (best && !best.poi) best.poi = p.tags;
   }
   buildings.sort((a, b) => (a.c[0] ** 2 + a.c[1] ** 2) - (b.c[0] ** 2 + b.c[1] ** 2));
-  return { buildings: buildings.slice(0, 520), roads: roads.slice(0, 600), radius: r };
+  return { buildings: buildings.slice(0, 520), roads: roads.slice(0, 600), trees: trees.slice(0, 1200), greens: greens.slice(0, 120), radius: r, real: true };
+}
+
+/* =========================================================================
+   Real-world imagery & terrain (no API key)
+   - Satellite: Esri World Imagery tiles (fallback: OSM map tiles)
+   - Elevation: AWS Terrain Tiles (terrarium encoding)
+   ========================================================================= */
+const lon2tx = (lon, z) => (lon + 180) / 360 * 2 ** z;
+const lat2ty = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z; };
+const tx2lon = (x, z) => x / 2 ** z * 360 - 180;
+const ty2lat = (y, z) => { const n = Math.PI - 2 * Math.PI * y / 2 ** z; return 180 / Math.PI * Math.atan(Math.sinh(n)); };
+const SAT_SOURCES = [
+  { name: 'Esri World Imagery', url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`, credit: '위성사진 © Esri, Maxar, Earthstar Geographics' },
+  { name: 'OpenStreetMap', url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, credit: '지도 © OpenStreetMap' },
+];
+function loadImg(url, ms = 15000) {
+  return new Promise(res => {
+    const im = new Image(); im.crossOrigin = 'anonymous';
+    const to = setTimeout(() => { im.src = ''; res(null); }, ms);
+    im.onload = () => { clearTimeout(to); res(im); };
+    im.onerror = () => { clearTimeout(to); res(null); };
+    im.src = url;
+  });
+}
+/** Stitch tiles covering [lat0±ext, lon0±ext] into one canvas. Returns {canvas, west, east, north, south, z} or null. */
+async function stitchTiles(urlFn, lat0, lon0, ext, z, minOk = .7) {
+  const k = Math.cos(lat0 * Math.PI / 180);
+  const dLat = ext / 110574, dLon = ext / (111320 * k);
+  const x0 = Math.floor(lon2tx(lon0 - dLon, z)), x1 = Math.floor(lon2tx(lon0 + dLon, z));
+  const y0 = Math.floor(lat2ty(lat0 + dLat, z)), y1 = Math.floor(lat2ty(lat0 - dLat, z));
+  const cv = document.createElement('canvas'); cv.width = (x1 - x0 + 1) * 256; cv.height = (y1 - y0 + 1) * 256;
+  const g = cv.getContext('2d');
+  const jobs = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++)
+    jobs.push(loadImg(urlFn(z, x, y)).then(im => { if (im) g.drawImage(im, (x - x0) * 256, (y - y0) * 256); return !!im; }));
+  const ok = (await Promise.all(jobs)).filter(Boolean).length;
+  if (ok < jobs.length * minOk) return null;
+  try { g.getImageData(0, 0, 1, 1); } catch (e) { return null; } // tainted canvas → unusable as WebGL texture
+  return { canvas: cv, west: tx2lon(x0, z), east: tx2lon(x1 + 1, z), north: ty2lat(y0, z), south: ty2lat(y1 + 1, z), z, x0, y0 };
+}
+async function fetchImagery(lat0, lon0, r) {
+  const ext = r + 110;
+  for (const src of SAT_SOURCES) {
+    // highest zoom that keeps the stitched texture ≤ 8×8 tiles (2048 px)
+    let z = 19;
+    const k = Math.cos(lat0 * Math.PI / 180);
+    while (z > 15 && (2 * ext) / (40075016 * k / 2 ** z) > 7) z--;
+    const t = await stitchTiles(src.url, lat0, lon0, ext, z);
+    if (t) { t.credit = src.credit; t.source = src.name; return t; }
+  }
+  return null;
+}
+async function fetchTerrain(lat0, lon0, r) {
+  const z = 15, ext = r + 160;
+  const t = await stitchTiles((z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`, lat0, lon0, ext, z, 1);
+  if (!t) return null;
+  const data = t.canvas.getContext('2d').getImageData(0, 0, t.canvas.width, t.canvas.height).data;
+  const W = t.canvas.width, H = t.canvas.height;
+  const px = (x, y) => { x = clamp(Math.round(x), 0, W - 1); y = clamp(Math.round(y), 0, H - 1); const i = (y * W + x) * 4; return data[i] * 256 + data[i + 1] + data[i + 2] / 256 - 32768; };
+  const sample = (lat, lon) => {
+    const fx = (lon2tx(lon, z) - t.x0) * 256 - .5, fy = (lat2ty(lat, z) - t.y0) * 256 - .5;
+    const ix = Math.floor(fx), iy = Math.floor(fy), ax = fx - ix, ay = fy - iy;
+    return (px(ix, iy) * (1 - ax) + px(ix + 1, iy) * ax) * (1 - ay) + (px(ix, iy + 1) * (1 - ax) + px(ix + 1, iy + 1) * ax) * ay;
+  };
+  // regular grid in local metres
+  const k = Math.cos(lat0 * Math.PI / 180), N = 80, half = r + 150;
+  let grid = new Float32Array((N + 1) * (N + 1));
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+    const x = -half + 2 * half * i / N, zz = -half + 2 * half * j / N;
+    grid[j * (N + 1) + i] = sample(lat0 - zz / 110574, lon0 + x / (111320 * k));
+  }
+  // SRTM-style data contains building bulk in dense cities: smooth it
+  for (let pass = 0; pass < 2; pass++) {
+    const out = new Float32Array(grid.length);
+    for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+      let s = 0, c = 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const a = i + di, b = j + dj; if (a < 0 || b < 0 || a > N || b > N) continue; s += grid[b * (N + 1) + a]; c++;
+      }
+      out[j * (N + 1) + i] = s / c;
+    }
+    grid = out;
+  }
+  const h0 = grid[(N / 2) * (N + 1) + N / 2];
+  for (let i = 0; i < grid.length; i++) grid[i] -= h0;
+  let mn = 1e9, mx = -1e9; for (const v of grid) { mn = Math.min(mn, v); mx = Math.max(mx, v); }
+  return { N, half, grid, min: mn, max: mx, elev0: h0 };
+}
+let TER = null;
+/** Ground height (metres, relative to the start point) at local x,z. */
+function getH(x, z) {
+  if (!TER) return 0;
+  const { N, half, grid } = TER;
+  const fx = clamp((x + half) / (2 * half) * N, 0, N - 1e-6), fz = clamp((z + half) / (2 * half) * N, 0, N - 1e-6);
+  const i = Math.floor(fx), j = Math.floor(fz), a = fx - i, b = fz - j, W = N + 1;
+  return (grid[j * W + i] * (1 - a) + grid[j * W + i + 1] * a) * (1 - b) + (grid[(j + 1) * W + i] * (1 - a) + grid[(j + 1) * W + i + 1] * a) * b;
 }
 
 /** Procedural fallback neighborhood (no network). */
@@ -486,13 +603,19 @@ async function loadNeighborhood(s) {
   const r = radius();
   let world = null, note = '';
   if (s) {
-    try {
-      const data = await fetchOSM(s.lat, s.lon, r);
-      world = worldFromOSM(data, s.lat, s.lon, r);
-      lastWorldSrc = { data, lat: s.lat, lon: s.lon, r, label: s.label };
+    $('#loadMsg').textContent = '건물 · 위성사진 · 지형 데이터를 받는 중…';
+    const [osm, sat, ter] = await Promise.allSettled([
+      fetchOSM(s.lat, s.lon, r), fetchImagery(s.lat, s.lon, r), fetchTerrain(s.lat, s.lon, r)]);
+    const satV = sat.status === 'fulfilled' ? sat.value : null;
+    const terV = ter.status === 'fulfilled' ? ter.value : null;
+    if (osm.status === 'fulfilled') {
+      world = worldFromOSM(osm.value, s.lat, s.lon, r);
+      lastWorldSrc = { data: osm.value, lat: s.lat, lon: s.lon, r, label: s.label, sat: satV, ter: terV };
       if (world.buildings.length < 8) { note = '이 위치에는 지도에 등록된 건물이 거의 없어 가상 건물로 채웠습니다.'; world = null; }
-    } catch (e) {
-      note = '지도 건물 서버에 연결하지 못해 가상 동네를 생성했습니다.';
+    } else note = '지도 건물 서버에 연결하지 못해 가상 동네를 생성했습니다.';
+    if (world) {
+      world.sat = satV; world.ter = terV; world.lat0 = s.lat; world.lon0 = s.lon;
+      if (!satV) note = '위성사진을 불러오지 못해 기본 바닥으로 표시합니다.';
     }
   }
   if (!world) { world = worldProcedural(r); lastWorldSrc = { proc: true, r, label: s ? s.label : '가상 동네' }; }
@@ -509,8 +632,10 @@ async function loadNeighborhood(s) {
 
 function rebuildSameWorld() {
   const src = lastWorldSrc; let world;
-  if (src && !src.proc) world = worldFromOSM(src.data, src.lat, src.lon, src.r);
-  else world = worldProcedural(src ? src.r : 250);
+  if (src && !src.proc) {
+    world = worldFromOSM(src.data, src.lat, src.lon, src.r);
+    world.sat = src.sat; world.ter = src.ter; world.lat0 = src.lat; world.lon0 = src.lon;
+  } else world = worldProcedural(src ? src.r : 250);
   world.label = WORLD.label; prepareBuildings(world); build3D(world); newGame(world, '');
 }
 
@@ -541,11 +666,11 @@ function init3D() {
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera; sc.left = -450; sc.right = 450; sc.top = 450; sc.bottom = -450; sc.near = 10; sc.far = 1200;
   scene.add(sun); scene.add(sun.target);
-  baseLight = new THREE.PointLight(0xffb060, 0, 90, 1.6); scene.add(baseLight);
+  baseLight = new THREE.PointLight(0xffb060, 0, 45, 2); scene.add(baseLight);
   scene.fog = new THREE.Fog(0xa8b0b4, 300, 1200);
   groundMat = new THREE.MeshLambertMaterial({ color: 0x4a4d45 });
-  const g = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), groundMat);
-  g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g);
+  groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), groundMat);
+  groundPlane.rotation.x = -Math.PI / 2; groundPlane.receiveShadow = true; scene.add(groundPlane);
   window.addEventListener('resize', onResize); onResize();
   setupControls();
   requestAnimationFrame(loop);
@@ -561,30 +686,200 @@ function disposeGroup(g) {
   scene.remove(g);
 }
 
+/* ---- procedural facade textures (Korean streetscape) ---- */
+const TEX_CACHE = {};
+let litMats = [], satTex = null, SATX = null, groundPlane = null;
+function cnv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
+function grain(g, w, h, a) {
+  for (let i = 0; i < w * h / 24; i++) {
+    const v = Math.random() < .5 ? 0 : 255;
+    g.fillStyle = `rgba(${v},${v},${v},${a * Math.random()})`;
+    g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  }
+}
+function glass(g, x, y, w, h, tint = '#2c3a46') {
+  const gr = g.createLinearGradient(x, y, x + w * .7, y + h);
+  gr.addColorStop(0, tint); gr.addColorStop(.45, '#6a7c8a'); gr.addColorStop(.55, '#3d4c58'); gr.addColorStop(1, '#1e2830');
+  g.fillStyle = gr; g.fillRect(x, y, w, h);
+}
+function bricks(g, w, h, base, mortar) {
+  g.fillStyle = mortar; g.fillRect(0, 0, w, h);
+  for (let y = 0, row = 0; y < h; y += 9, row++) for (let x = (row % 2) * -10; x < w; x += 20) {
+    const l = 0.85 + Math.random() * .3; const c = new THREE.Color(base).multiplyScalar(l);
+    g.fillStyle = '#' + c.getHexString(); g.fillRect(x + 1, y + 1, 18, 7);
+  }
+}
+const FACADES = {
+  // key: [width m, height m] of the 2-bay × 2-floor tile, and a painter
+  apt:     [8, 5.6, (g, lit) => cells(g, lit, (x, y) => { // white concrete apartment, big balcony windows
+    if (!lit) { g.fillStyle = '#e4e1da'; g.fillRect(x, y, 128, 128); g.fillStyle = '#cfcac0'; g.fillRect(x, y + 114, 128, 14); }
+    win(g, lit, x + 10, y + 18, 108, 80, .18, true);
+    if (!lit) { g.fillStyle = 'rgba(220,224,226,.85)'; g.fillRect(x + 8, y + 82, 112, 4); g.fillRect(x + 8, y + 96, 112, 3); }
+  })],
+  villa:   [7, 6, (g, lit) => { if (!lit) bricks(g, 256, 256, '#93503a', '#b8a594'); cells(g, lit, (x, y) => win(g, lit, x + 34, y + 30, 60, 56, .22, false, '#f1efe9')); }],
+  villaB:  [7, 6, (g, lit) => cells(g, lit, (x, y) => {
+    if (!lit) { g.fillStyle = '#d6c4a2'; g.fillRect(x, y, 128, 128); g.strokeStyle = 'rgba(255,255,255,.25)'; for (let i = 0; i < 128; i += 16) { g.beginPath(); g.moveTo(x, y + i); g.lineTo(x + 128, y + i); g.stroke(); } }
+    win(g, lit, x + 30, y + 30, 68, 56, .22, false, '#eeeeea');
+  })],
+  villaW:  [7, 6, (g, lit) => cells(g, lit, (x, y) => {
+    if (!lit) { g.fillStyle = '#e9e8e3'; g.fillRect(x, y, 128, 128); g.fillStyle = '#b9b5ad'; g.fillRect(x, y + 120, 128, 8); }
+    win(g, lit, x + 26, y + 28, 76, 60, .22, false, '#9aa0a6');
+  })],
+  shopUp:  [8, 6.4, (g, lit) => cells(g, lit, (x, y) => {
+    if (!lit) { g.fillStyle = '#c7bfae'; g.fillRect(x, y, 128, 128); g.fillStyle = 'rgba(0,0,0,.06)'; for (let i = 0; i < 128; i += 12) g.fillRect(x, y + i, 128, 1); }
+    win(g, lit, x + 16, y + 26, 96, 62, .12, true);
+  })],
+  office:  [6, 7, (g, lit) => {
+    if (!lit) { glass(g, 0, 0, 256, 256, '#33485a'); }
+    cells(g, lit, (x, y) => {
+      if (lit) { if (Math.random() < .1) { g.fillStyle = '#e8f0ff'; g.fillRect(x + 4, y + 4, 120, 100); } return; }
+      g.fillStyle = '#56636e'; g.fillRect(x, y + 104, 128, 24);
+      g.fillStyle = '#9aa8b4'; for (let i = 0; i <= 128; i += 32) g.fillRect(x + i - 1, y, 3, 104);
+    });
+  }],
+  hospital:[7, 7, (g, lit) => cells(g, lit, (x, y) => {
+    if (!lit) { g.fillStyle = '#efefec'; g.fillRect(x, y, 128, 128); }
+    win(g, lit, x + 8, y + 36, 112, 52, .3, true);
+  })],
+  school:  [8, 7.4, (g, lit) => cells(g, lit, (x, y) => {
+    if (!lit) { g.fillStyle = '#e3d3b0'; g.fillRect(x, y, 128, 128); g.fillStyle = '#c9b48c'; g.fillRect(x, y + 118, 128, 10); }
+    win(g, lit, x + 6, y + 30, 116, 58, .05, true, '#f5f5f0');
+  })],
+  brick:   [7, 8, (g, lit) => { if (!lit) bricks(g, 256, 256, '#7a3c2c', '#a99282'); cells(g, lit, (x, y) => win(g, lit, x + 46, y + 14, 36, 100, .2, false, '#d9cdb5')); }],
+  metal:   [6, 8, (g, lit) => { if (lit) return; for (let x = 0; x < 256; x += 8) { g.fillStyle = x % 16 ? '#8c9196' : '#a1a6ab'; g.fillRect(x, 0, 8, 256); } g.fillStyle = 'rgba(120,70,40,.25)'; for (let i = 0; i < 30; i++) g.fillRect(Math.random() * 256, Math.random() * 256, 3, 20 + Math.random() * 40); }],
+};
+function cells(g, lit, fn) { for (let f = 0; f < 2; f++) for (let b = 0; b < 2; b++) fn(b * 128, f * 128); }
+/** Draw a window. In the lit pass, randomly light it (most homes are dark — it's the apocalypse). */
+function win(g, lit, x, y, w, h, pLit, mullion, frame = '#f2f2ee') {
+  if (lit) { if (Math.random() < pLit) { g.fillStyle = Math.random() < .7 ? '#ffc56e' : '#ff9a4a'; g.fillRect(x, y, w, h); } return; }
+  g.fillStyle = frame; g.fillRect(x - 4, y - 4, w + 8, h + 8);
+  glass(g, x, y, w, h);
+  if (mullion) { g.fillStyle = frame; g.fillRect(x + w / 2 - 2, y, 4, h); }
+  if (Math.random() < .3) { g.fillStyle = 'rgba(230,220,200,.75)'; g.fillRect(x, y, w * R(.2, .5), h); } // curtain
+  if (Math.random() < .12) { g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x + R(0, w), y); g.lineTo(x + R(0, w), y + h); g.stroke(); } // crack
+}
+function facadeTex(key) {
+  if (TEX_CACHE[key]) return TEX_CACHE[key];
+  const [w, h, paint] = FACADES[key];
+  const [c, g] = cnv(256, 256); paint(g, false); grain(g, 256, 256, .06);
+  // grime streaks
+  for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(40,35,30,${R(.03, .09)})`; g.fillRect(R(0, 256), R(0, 200), R(2, 6), R(30, 120)); }
+  const [lc, lg] = cnv(256, 256);
+  for (let tries = 0; tries < 12; tries++) { // make sure the lit pattern has at least one window on
+    lg.fillStyle = '#000'; lg.fillRect(0, 0, 256, 256); paint(lg, true);
+    const d = lg.getImageData(0, 0, 256, 256).data; let on = false;
+    for (let i = 0; i < d.length; i += 16) if (d[i] > 60) { on = true; break; }
+    if (on || key === 'metal') break;
+  }
+  const mk = cv => { const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / w, 1 / h); t.anisotropy = 4; return t; };
+  return (TEX_CACHE[key] = { map: mk(c), lit: mk(lc), w, h });
+}
+const SHOP_WORDS = {
+  gen: ['부동산', '미용실', '세탁소', '분식', '치킨', '카페', '휴대폰', '안경원', '노래방', 'PC방', '학원', '꽃집', '정육점', '반찬가게'],
+  store: ['편의점', '24시 편의점', '편의점'], mart: ['마트', '슈퍼마켓', '할인마트'], food: ['식당', '분식', '치킨', '국밥', '카페', '중국집', '삼겹살'],
+  pharm: ['약국', '온누리약국', '건강약국'], hw: ['철물점', '공구상사', '철물·건재'],
+};
+const SIGN_COL = ['#c8312b', '#1f5fb4', '#1e8a4c', '#e0a21c', '#e86a1c', '#5b2a86', '#f2f2f2', '#18324f'];
+function storefrontTex(kind, variant) {
+  const key = `sf_${kind}_${variant}`;
+  if (TEX_CACHE[key]) return TEX_CACHE[key];
+  const [c, g] = cnv(512, 256);
+  for (let s = 0; s < 2; s++) {
+    const x = s * 256;
+    g.fillStyle = '#3a3a3a'; g.fillRect(x, 0, 256, 256);
+    const col = pickArr(SIGN_COL); g.fillStyle = col; g.fillRect(x + 2, 6, 252, 70);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x + 2, 70, 252, 6);
+    g.fillStyle = col === '#f2f2f2' ? '#c8312b' : '#fff';
+    g.font = 'bold 44px "Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(pickArr(SHOP_WORDS[kind]), x + 128, 42, 236);
+    glass(g, x + 10, 92, 236, 156, '#1d2a33');
+    g.fillStyle = '#9a9a9a'; g.fillRect(x + 120, 92, 5, 156); g.fillRect(x + 10, 92, 236, 5);
+    if (Math.random() < .5) { g.fillStyle = 'rgba(160,160,160,.85)'; for (let y = 92; y < 92 + R(40, 150); y += 7) g.fillRect(x + 10, y, 236, 5); } // half-closed shutter
+    if (Math.random() < .35) { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2; const cx = x + R(30, 220), cy = R(120, 220); for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + R(-60, 60), cy + R(-50, 50)); g.stroke(); } } // smashed glass
+  }
+  grain(g, 512, 256, .05);
+  const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.set(1 / 9, 1 / 3.6); t.anisotropy = 4;
+  return (TEX_CACHE[key] = { map: t, w: 9, h: 3.6 });
+}
+const FACADE_OF = { apt: 'apt', shop: 'shopUp', store: 'shopUp', mart: 'office', restaurant: 'shopUp', pharmacy: 'shopUp', hospital: 'hospital', police: 'office', fire: 'shopUp', school: 'school', hardware: 'shopUp', office: 'office', church: 'brick', factory: 'metal', fuel: 'metal' };
+const STOREFRONT_OF = { shop: 'gen', store: 'store', mart: 'mart', restaurant: 'food', pharmacy: 'pharm', hardware: 'hw' };
+function facadeKey(b) {
+  if (b.type === 'house') { const r = hash01(b.id + 'f'); return r < .45 ? 'villa' : r < .75 ? 'villaB' : 'villaW'; }
+  const m = (b.tags['building:material'] || '').toLowerCase();
+  if (m === 'brick') return 'villa'; if (m === 'glass') return 'office'; if (m === 'metal') return 'metal';
+  return FACADE_OF[b.type] || 'shopUp';
+}
+/** ExtrudeGeometry UV generator: roofs sample the satellite photo; walls get metre-based UVs snapped to whole window bays. */
+function uvGen(bay, sink) {
+  const V = THREE.Vector2;
+  return {
+    generateTopUV(geo, v, a, b, c) {
+      const f = i => SATX ? new V((v[i * 3] - SATX.x0) / (SATX.x1 - SATX.x0), 1 - (-v[i * 3 + 1] - SATX.z0) / (SATX.z1 - SATX.z0)) : new V(v[i * 3] / 8, v[i * 3 + 1] / 8);
+      return [f(a), f(b), f(c)];
+    },
+    generateSideWallUV(geo, v, a, b, c, d) {
+      const L = Math.hypot(v[b * 3] - v[a * 3], v[b * 3 + 1] - v[a * 3 + 1]);
+      const U = Math.max(1, Math.round(L / bay)) * bay;
+      return [new V(0, v[a * 3 + 2] - sink), new V(U, v[b * 3 + 2] - sink), new V(U, v[c * 3 + 2] - sink), new V(0, v[d * 3 + 2] - sink)];
+    },
+  };
+}
+function offsetPoly(pts, c, d) {
+  return pts.map(([x, z]) => { const dx = x - c[0], dz = z - c[1], L = Math.hypot(dx, dz) || 1; return [x + dx / L * d, z + dz / L * d]; });
+}
+
 function build3D(world) {
   init3D();
   if (cityGroup) disposeGroup(cityGroup);
+  if (satTex) { satTex.dispose(); satTex = null; }
   cityGroup = new THREE.Group(); scene.add(cityGroup);
-  WORLD = world; bMeshes = [];
+  WORLD = world; bMeshes = []; litMats = [];
+  TER = world.ter || null; SATX = null;
   const r = world.radius;
 
-  // neighbourhood disc (slightly lighter than the outskirts)
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(r + 70, 64), new THREE.MeshLambertMaterial({ color: 0x5b5e55 }));
-  disc.rotation.x = -Math.PI / 2; disc.position.y = .02; disc.receiveShadow = true; cityGroup.add(disc);
+  // ---- ground: satellite photo draped over real terrain ----
+  let gx0 = -(r + 150), gx1 = r + 150, gz0 = -(r + 150), gz1 = r + 150;
+  let groundMatLocal;
+  if (world.sat) {
+    const s = world.sat, k = Math.cos(world.lat0 * Math.PI / 180);
+    const P = (la, lo) => [(lo - world.lon0) * 111320 * k, -(la - world.lat0) * 110574];
+    [gx0, gz0] = P(s.north, s.west); [gx1, gz1] = P(s.south, s.east);
+    SATX = { x0: gx0, x1: gx1, z0: gz0, z1: gz1 };
+    satTex = new THREE.CanvasTexture(s.canvas);
+    satTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    groundMatLocal = new THREE.MeshLambertMaterial({ map: satTex });
+  } else groundMatLocal = new THREE.MeshLambertMaterial({ color: 0x5b5e55 });
+  if (world.sat || TER) {
+    const seg = 110;
+    const gg = new THREE.PlaneGeometry(gx1 - gx0, gz1 - gz0, seg, seg);
+    gg.rotateX(-Math.PI / 2); gg.translate((gx0 + gx1) / 2, 0, (gz0 + gz1) / 2);
+    const pa = gg.attributes.position;
+    for (let i = 0; i < pa.count; i++) pa.setY(i, getH(pa.getX(i), pa.getZ(i)));
+    gg.computeVertexNormals();
+    const gm = new THREE.Mesh(gg, groundMatLocal); gm.receiveShadow = true; cityGroup.add(gm);
+  } else {
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r + 70, 64), groundMatLocal);
+    disc.rotation.x = -Math.PI / 2; disc.position.y = .02; disc.receiveShadow = true; cityGroup.add(disc);
+  }
+  groundPlane.position.y = TER ? TER.min - 1.5 : 0;
 
-  // roads → one merged ribbon geometry
+  // ---- roads: sampled for spawning; drawn only when there is no satellite photo ----
   const pos = [], idx = []; roadSamples = [];
-  const addSeg = (a, b, w, y) => {
+  const addSeg = (a, b, w, lift) => {
     const dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz); if (L < .1) return;
-    const nx = -dz / L * w / 2, nz = dx / L * w / 2, i = pos.length / 3;
-    pos.push(a[0] + nx, y, a[1] + nz, a[0] - nx, y, a[1] - nz, b[0] + nx, y, b[1] + nz, b[0] - nx, y, b[1] - nz);
-    idx.push(i, i + 2, i + 1, i + 1, i + 2, i + 3);
     if (w >= 4) for (let t = 0; t < L; t += 12) roadSamples.push([a[0] + dx * t / L, a[1] + dz * t / L]);
+    if (world.sat) return;
+    const n = Math.max(1, Math.ceil(L / 10)), nx = -dz / L * w / 2, nz = dx / L * w / 2;
+    for (let s = 0; s < n; s++) {
+      const p = [a[0] + dx * s / n, a[1] + dz * s / n], q = [a[0] + dx * (s + 1) / n, a[1] + dz * (s + 1) / n], i = pos.length / 3;
+      pos.push(p[0] + nx, getH(p[0] + nx, p[1] + nz) + lift, p[1] + nz, p[0] - nx, getH(p[0] - nx, p[1] - nz) + lift, p[1] - nz,
+               q[0] + nx, getH(q[0] + nx, q[1] + nz) + lift, q[1] + nz, q[0] - nx, getH(q[0] - nx, q[1] - nz) + lift, q[1] - nz);
+      idx.push(i, i + 2, i + 1, i + 1, i + 2, i + 3);
+    }
   };
   for (const rd of world.roads) {
-    const y = rd.w >= 4 ? .06 + Math.min(rd.w, 18) * .002 : .05;
-    for (let i = 0; i < rd.pts.length - 1; i++) addSeg(rd.pts[i], rd.pts[i + 1], rd.w, y);
-    // round the joints a little
+    const lift = rd.w >= 4 ? .08 + Math.min(rd.w, 18) * .002 : .06;
+    for (let i = 0; i < rd.pts.length - 1; i++) addSeg(rd.pts[i], rd.pts[i + 1], rd.w, lift);
   }
   roadSamples = roadSamples.filter(p => Math.hypot(p[0], p[1]) < r + 40);
   if (pos.length) {
@@ -594,35 +889,91 @@ function build3D(world) {
     road.receiveShadow = true; cityGroup.add(road);
   }
 
-  // buildings → extruded footprints
+  // ---- buildings: real footprints, satellite roofs, textured walls ----
+  const roofMat = world.sat ? new THREE.MeshLambertMaterial({ map: satTex }) : new THREE.MeshLambertMaterial({ color: 0x8e8d88 });
+  const roofTint = {};
   for (const b of world.buildings) {
+    let gmin = 1e9, gmax = -1e9;
+    for (const [x, z] of b.pts) { const h = getH(x, z); gmin = Math.min(gmin, h); gmax = Math.max(gmax, h); }
+    const sink = 1 + (gmax - gmin);
+    const fk = facadeKey(b), F = facadeTex(fk);
     const shape = new THREE.Shape();
     b.pts.forEach(([x, z], i) => i ? shape.lineTo(x, -z) : shape.moveTo(x, -z));
     let geo;
-    try { geo = new THREE.ExtrudeGeometry(shape, { depth: b.h, bevelEnabled: false }); } catch (e) { continue; }
+    try { geo = new THREE.ExtrudeGeometry(shape, { depth: b.h + sink, bevelEnabled: false, UVGenerator: uvGen(F.w / 2, 1) }); } catch (e) { continue; }
     geo.rotateX(-Math.PI / 2);
-    const col = new THREE.Color(TYPES[b.type].color);
-    col.offsetHSL(0, 0, (hash01(b.id + 'c') - .5) * .08);
-    const mat = new THREE.MeshLambertMaterial({ color: col, emissive: 0x000000 });
-    const m = new THREE.Mesh(geo, mat);
+    const wall = new THREE.MeshLambertMaterial({ map: F.map, emissive: 0xffc477, emissiveMap: F.lit, emissiveIntensity: 0 });
+    const tag = b.tags['building:colour'];
+    if (tag) { try { wall.color.set(tag).lerp(new THREE.Color(1, 1, 1), .55); } catch (e) { } }
+    else wall.color.setScalar(.88 + hash01(b.id + 'c') * .12);
+    wall.userData.litK = hash01(b.id + 'n') < .4 ? R(.7, 1.1) : 0; // most homes stay dark
+    litMats.push(wall);
+    let roof = roofMat;
+    if (!world.sat && b.tags['roof:colour']) { const rc = b.tags['roof:colour']; roof = roofTint[rc] || (roofTint[rc] = new THREE.MeshLambertMaterial({ color: rc })); }
+    const m = new THREE.Mesh(geo, [roof, wall]);
+    m.position.y = gmin - 1;
     m.castShadow = true; m.receiveShadow = true;
-    m.userData.b = b; b.mesh = m; b.baseColor = col.clone();
+    m.userData.b = b; b.mesh = m; b.top = gmax + b.h; b.ground = gmin;
     cityGroup.add(m); bMeshes.push(m);
-    // roof sign for important places
+    // ground-floor shops: Korean signboards + glass storefront band
+    const sk = STOREFRONT_OF[b.type] || (b.type === 'apt' || b.type === 'office' ? null : (b.tags.shop || b.poi ? 'gen' : null));
+    if (sk && b.h >= 3.5 && b.area > 25) {
+      const S2 = storefrontTex(sk, Math.floor(hash01(b.id + 'v') * 3));
+      const sh = new THREE.Shape();
+      offsetPoly(b.pts, b.c, .25).forEach(([x, z], i) => i ? sh.lineTo(x, -z) : sh.moveTo(x, -z));
+      try {
+        const sg = new THREE.ExtrudeGeometry(sh, { depth: sink + 3.6, bevelEnabled: false, UVGenerator: uvGen(4.5, sink) });
+        sg.rotateX(-Math.PI / 2);
+        const sm = new THREE.Mesh(sg, [roofMat, new THREE.MeshLambertMaterial({ map: S2.map })]);
+        sm.position.y = gmin - 1; sm.castShadow = true; cityGroup.add(sm);
+      } catch (e) { }
+    }
     if (['hospital', 'police', 'pharmacy', 'mart', 'store', 'fire', 'school', 'hardware'].includes(b.type)) {
       const sign = makeLabelSprite(b.type === 'hospital' ? '✚' : b.type === 'pharmacy' ? '💊' : b.type === 'police' ? '🚓' : b.type === 'fire' ? '🚒' : b.type === 'school' ? '🏫' : b.type === 'hardware' ? '🔧' : '🛒');
-      sign.position.set(b.c[0], b.h + 6, b.c[1]); cityGroup.add(sign); b.sign = sign;
+      sign.position.set(b.c[0], b.top + 6, b.c[1]); cityGroup.add(sign); b.sign = sign;
     }
   }
 
-  // wreck cars & debris for atmosphere
+  // ---- trees: mapped trees + parks/green areas ----
+  const tp = (world.trees || []).filter(([x, z]) => Math.hypot(x, z) < r + 80);
+  for (const gArea of world.greens || []) {
+    if (!['park', 'garden', 'forest', 'wood', 'recreation_ground', 'village_green', 'meadow', 'grass', 'scrub', 'playground'].includes(gArea.kind)) continue;
+    const dens = ['forest', 'wood'].includes(gArea.kind) ? 45 : ['grass', 'meadow', 'playground'].includes(gArea.kind) ? 400 : 140;
+    let n = Math.min(160, Math.floor(gArea.area / dens));
+    let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
+    for (const [x, z] of gArea.pts) { mnx = Math.min(mnx, x); mxx = Math.max(mxx, x); mnz = Math.min(mnz, z); mxz = Math.max(mxz, z); }
+    for (let tries = 0; n > 0 && tries < n * 6; tries++) {
+      const x = R(mnx, mxx), z = R(mnz, mxz);
+      if (Math.hypot(x, z) > r + 80 || !inPoly(x, z, gArea.pts) || blocked(x, z)) continue;
+      tp.push([x, z]); n--;
+    }
+  }
+  if (tp.length) {
+    const N = Math.min(tp.length, 1600);
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.18, .26, 3, 5), new THREE.MeshLambertMaterial({ color: 0x5a4632 }), N);
+    const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), N);
+    const col = new THREE.Color();
+    for (let i = 0; i < N; i++) {
+      const [x, z] = tp[i], y = getH(x, z), s = R(1.8, 3.2);
+      _m.compose(_v.set(x, y + 1.5, z), _q.identity(), _s.set(1, 1, 1)); trunk.setMatrixAt(i, _m);
+      _m.compose(_v.set(x, y + 3 + s * .7, z), _q.identity(), _s.set(s, s * R(1, 1.3), s)); crown.setMatrixAt(i, _m);
+      crown.setColorAt(i, col.setHSL(R(.22, .3), R(.25, .4), R(.22, .32)));
+    }
+    _s.set(1, 1, 1);
+    trunk.castShadow = crown.castShadow = true;
+    cityGroup.add(trunk); cityGroup.add(crown);
+  }
+
+  // ---- wreck cars ----
   const carGeo = new THREE.BoxGeometry(1.8, 1.3, 4.2);
   for (let i = 0; i < Math.min(60, roadSamples.length / 4); i++) {
     const p = pickArr(roadSamples);
     const c = new THREE.Mesh(carGeo, new THREE.MeshLambertMaterial({ color: pickArr([0x6b2a22, 0x2b3d55, 0x777777, 0x3b3b2a, 0xb8b0a0]) }));
-    c.position.set(p[0] + R(-2, 2), .65, p[1] + R(-2, 2)); c.rotation.y = R(0, Math.PI * 2); c.rotation.z = chance(.15) ? Math.PI / 2 : 0;
+    const x = p[0] + R(-2, 2), z = p[1] + R(-2, 2);
+    c.position.set(x, getH(x, z) + .65, z); c.rotation.y = R(0, Math.PI * 2); c.rotation.z = chance(.15) ? Math.PI / 2 : 0;
     c.castShadow = true; cityGroup.add(c);
   }
+  $('#credit').innerHTML = (world.sat ? world.sat.credit + ' · ' : '') + '건물·도로 © OpenStreetMap' + (TER ? ` · 지형 AWS Terrain Tiles (해발 ${Math.round(TER.elev0)}m)` : '');
 
   // zombies (instanced: body + head)
   const maxZ = 220;
@@ -642,7 +993,7 @@ function build3D(world) {
   beam.position.y = 80; baseMarker.add(beam);
   baseMarker.visible = false; cityGroup.add(baseMarker);
 
-  orbit.goal.set(0, 0, 0); orbit.target.set(0, 0, 0); orbit.dist = r * 1.25; orbit.phi = .95;
+  orbit.goal.set(0, getH(0, 0), 0); orbit.target.copy(orbit.goal); orbit.dist = r * 1.25; orbit.phi = .95;
   setRoadview(false);
 }
 
@@ -688,8 +1039,9 @@ function updateZombies(dt, t) {
     _q.setFromAxisAngle(_v.set(0, 1, 0), yaw);
     const lean = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), .25);
     _q.multiply(lean);
-    _m.compose(_v.set(zb.x, .7 + bob, zb.z), _q, _s); zBody.setMatrixAt(i, _m);
-    _m.compose(_v.set(zb.x + Math.sin(yaw) * .25, 1.62 + bob, zb.z + Math.cos(yaw) * .25), _q, _s); zHead.setMatrixAt(i, _m);
+    const gy = getH(zb.x, zb.z);
+    _m.compose(_v.set(zb.x, gy + .7 + bob, zb.z), _q, _s); zBody.setMatrixAt(i, _m);
+    _m.compose(_v.set(zb.x + Math.sin(yaw) * .25, gy + 1.62 + bob, zb.z + Math.cos(yaw) * .25), _q, _s); zHead.setMatrixAt(i, _m);
   }
   zBody.instanceMatrix.needsUpdate = true; zHead.instanceMatrix.needsUpdate = true;
 }
@@ -700,7 +1052,7 @@ const PHASES = {
   morning: { sky: 0xc7b9a2, fogN: 280, fogF: 1300, hemi: .75, sun: .9, sunC: 0xffe2b8, ground: 0x4c4e46, base: 0 },
   noon:    { sky: 0xa9b2b6, fogN: 300, fogF: 1400, hemi: .8,  sun: 1.0, sunC: 0xffffff, ground: 0x4a4d45, base: 0 },
   evening: { sky: 0xb26a3f, fogN: 220, fogF: 1100, hemi: .5,  sun: .7,  sunC: 0xff9a5a, ground: 0x45403a, base: .6 },
-  night:   { sky: 0x0a0e1a, fogN: 120, fogF: 800,  hemi: .22, sun: .12, sunC: 0x7d8fc8, ground: 0x23262a, base: 2.2 },
+  night:   { sky: 0x0a0e1a, fogN: 120, fogF: 800,  hemi: .3, sun: .16, sunC: 0x7d8fc8, ground: 0x23262a, base: .9 },
 };
 function setPhase(p) {
   const P = PHASES[p];
@@ -709,7 +1061,9 @@ function setPhase(p) {
   const ang = { morning: -1, noon: 0, evening: 1, night: .3 }[p];
   sun.position.set(320 * ang, p === 'night' ? 200 : 320 - Math.abs(ang) * 160, 140);
   baseLight.intensity = P.base;
-  if (S && S.base) baseLight.position.set(S.base.c[0], S.base.h + 4, S.base.c[1]);
+  if (S && S.base) baseLight.position.set(S.base.c[0], S.base.top + 4, S.base.c[1]);
+  const li = { morning: 0, noon: 0, evening: .35, night: 1.1 }[p];
+  for (const m of litMats) m.emissiveIntensity = li * m.userData.litK;
 }
 
 /* ---- controls: orbit + roadview (first person) ---- */
@@ -766,9 +1120,11 @@ function pickBuilding(cx, cy) {
   const hit = raycaster.intersectObjects(bMeshes, false)[0];
   return hit ? hit.object.userData.b : null;
 }
+const outlineMat = new THREE.LineBasicMaterial({ color: 0xffa040 });
 function setHighlight(b, on) {
   if (!b || !b.mesh) return;
-  b.mesh.material.emissive.setHex(on ? 0x553311 : 0x000000);
+  if (on && !b.outline) { b.outline = new THREE.LineSegments(new THREE.EdgesGeometry(b.mesh.geometry, 25), outlineMat); b.mesh.add(b.outline); }
+  else if (!on && b.outline) { b.mesh.remove(b.outline); b.outline.geometry.dispose(); b.outline = null; }
 }
 function hoverAt(cx, cy) {
   if ($('#modal').classList.contains('show')) return hideHover();
@@ -811,7 +1167,7 @@ function setRoadview(on) {
   } else { camera.fov = 55; camera.near = .5; }
   camera.updateProjectionMatrix();
 }
-function focusOn(x, z, dist) { orbit.goal.set(x, 0, z); if (dist) orbit.dist = dist; }
+function focusOn(x, z, dist) { orbit.goal.set(x, getH(x, z), z); if (dist) orbit.dist = dist; }
 
 let lastT = performance.now();
 function loop(t) {
@@ -829,9 +1185,10 @@ function loop(t) {
       if (!blocked(nx, rv.z)) rv.x = nx; if (!blocked(rv.x, nz)) rv.z = nz;
       const lim = WORLD.radius + 120, d = Math.hypot(rv.x, rv.z); if (d > lim) { rv.x *= lim / d; rv.z *= lim / d; }
     }
-    camera.position.set(rv.x, 1.7, rv.z);
+    const ey = getH(rv.x, rv.z) + 1.7;
+    camera.position.set(rv.x, ey, rv.z);
     const cp = Math.cos(rv.pitch);
-    camera.lookAt(rv.x - Math.sin(rv.yaw) * cp, 1.7 + Math.sin(rv.pitch), rv.z - Math.cos(rv.yaw) * cp);
+    camera.lookAt(rv.x - Math.sin(rv.yaw) * cp, ey + Math.sin(rv.pitch), rv.z - Math.cos(rv.yaw) * cp);
   } else {
     orbit.target.lerp(orbit.goal, Math.min(1, dt * 4));
     const o = orbit, sp = Math.sin(o.phi);
@@ -977,8 +1334,8 @@ function chooseBaseCard(b) {
 }
 function setBase(b, fort) {
   S.base = b; S.fort = fort; b.stock = Math.max(0, b.stock - 1); b.visited = true;
-  baseMarker.position.set(b.c[0], b.h, b.c[1]); baseMarker.visible = true;
-  b.mesh.material.color.set(0x5fae66); b.baseColor = b.mesh.material.color.clone();
+  baseMarker.position.set(b.c[0], b.top, b.c[1]); baseMarker.visible = true;
+  b.mesh.material[1].color.lerp(new THREE.Color(0x7fe08a), .45);
   focusOn(b.c[0], b.c[1], 180);
   log(`거점: ${b.name}`, 'g');
   S.phase = 'day'; S.ap = ACTIONS_PER_DAY;
@@ -1056,7 +1413,7 @@ function walkTo(b) {
   if (!best) best = [b.bb[1] + 4, b.c[1]];
   rv.x = best[0]; rv.z = best[1];
   rv.yaw = Math.atan2(-(b.c[0] - rv.x), -(b.c[1] - rv.z));
-  rv.pitch = Math.min(.6, Math.atan2(b.h * .5, Math.sqrt(bd) || 10));
+  rv.pitch = Math.min(.6, Math.atan2(b.top - b.h * .5 - getH(rv.x, rv.z), Math.sqrt(bd) || 10));
 }
 
 function explore(b, mode) {
@@ -1094,7 +1451,7 @@ function lootResult(b, careful, mult, pre) {
     } else got[k] = (got[k] || 0) + 1 + (chance(.35) ? 1 : 0);
   }
   S.looted += draws;
-  if (b.stock <= 0) { b.mesh.material.color.copy(b.baseColor).multiplyScalar(.45); if (b.sign) b.sign.material.opacity = .35; }
+  if (b.stock <= 0 && !b.dimmed) { b.dimmed = true; b.mesh.material[1].color.multiplyScalar(.5); if (b.sign) b.sign.material.opacity = .35; }
   const summary = gain(got);
   const flavor = draws === 0 ? '쓸만한 건 아무것도 없었다.' : pickArr(['먼지 쌓인 선반을 뒤졌다.', '부서진 문 너머를 살폈다.', '서랍과 찬장을 하나씩 열어 보았다.', '어둠 속에서 손전등을 비추며 물건을 챙겼다.']);
   log(`${b.name}: ${plain(summary) || '수확 없음'}${weaponTxt ? ' · ' + WEAPONS[S.weapon] : ''}`, draws ? 'g' : '');
@@ -1427,7 +1784,8 @@ if (typeof THREE === 'undefined') {
   initMap();
 }
 // test hook
-window.__NA = { get S() { return S; }, get WORLD() { return WORLD; }, worldFromOSM, worldProcedural, loadNeighborhood, onBuildingClick };
+window.__NA = { get S() { return S; }, get WORLD() { return WORLD; }, worldFromOSM, worldProcedural, loadNeighborhood, onBuildingClick, walkTo, night,
+  focus: (b, d, phi) => { setRoadview(false); focusOn(b.c[0], b.c[1], d); if (phi) orbit.phi = phi; } };
 </script>
 </body>
 </html>
