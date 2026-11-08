@@ -97,6 +97,26 @@ To test saving in Studio:
 2. Enable *Game Settings → Security → Enable Studio Access to API Services*.
    Use a separate test place, because Studio writes to the same live data that players use.
 
+## Playing on a phone
+
+Roblox Studio only runs on Windows or Mac, so the build and publish steps need a computer once.
+
+1. On the computer, run `rojo build -o CrystalCavern.rbxl` and open the file in Studio.
+2. **File → Publish to Roblox** creates a new experience.
+3. On the [Creator Dashboard](https://create.roblox.com/dashboard/creations), open the experience. In its settings:
+   - set **Playable Devices** to include *Phone* and *Tablet*;
+   - set access to *Public*, or *Private* if you only want to test it yourself.
+4. On the phone, sign in to the Roblox app with the same account. Open **Profile → Creations**, or search for the experience name.
+
+Before publishing, you can preview the layout in Studio: **Test → Device** emulates a phone or tablet.
+
+Touch layout (`Hud.client.luau` `adapt()`):
+
+- the HUD scales down on small screens and stays inside the safe area (`CoreUISafeInsets`);
+- MINE is a large button at the bottom centre, between the thumbstick and the jump button;
+- the shop is closed by default and opens from **🛒 Shop** in the top-right as a centred panel with a Close button;
+- you can also mine by tapping a crystal.
+
 ## Acceptance criteria
 
 - [ ] Clicking a crystal or MINE increases Gems by `perMine`. Spamming past 12 in a burst is ignored.

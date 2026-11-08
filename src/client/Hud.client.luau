@@ -6,6 +6,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -93,6 +94,12 @@ gui.Name = "CrystalHud"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Keep everything clear of notches, rounded corners and the Roblox top bar.
+gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+
+-- Shrinks the whole HUD on small screens (set in adapt()).
+local uiScale = Instance.new("UIScale")
+uiScale.Parent = gui
 
 -- Top-left stats.
 local stats = Instance.new("Frame")
@@ -233,6 +240,21 @@ local petInfo = label(petCard, "No pets yet — open an egg!", 14, 1)
 petInfo.AutomaticSize = Enum.AutomaticSize.Y
 petInfo.Size = UDim2.new(1, 0, 0, 0)
 
+-- Shop toggle: on phones the shop is a panel you open and close, so it never
+-- covers the thumbstick, the jump button or the crystals.
+local shopToggle = button(gui, "🛒 Shop", UDim2.fromOffset(110, 52), THEME.buttonAlt, function()
+	shop.Visible = not shop.Visible
+end)
+shopToggle.Name = "ShopToggle"
+shopToggle.AnchorPoint = Vector2.new(1, 0)
+shopToggle.Position = UDim2.new(1, -12, 0, 12)
+shopToggle.TextSize = 20
+
+local closeShop = button(shop, "✕ Close", UDim2.new(1, -6, 0, 44), THEME.disabled, function()
+	shop.Visible = false
+end)
+closeShop.LayoutOrder = 0
+
 -- Toast.
 local toast = Instance.new("TextLabel")
 toast.Name = "Toast"
@@ -245,6 +267,7 @@ toast.TextSize = 20
 toast.TextColor3 = THEME.text
 toast.TextWrapped = true
 toast.Visible = false
+toast.ZIndex = 10
 toast.Parent = gui
 corner(toast)
 
@@ -262,11 +285,39 @@ local function showToast(text: string, color: Color3?)
 	end)
 end
 
--- Phones: a narrower shop that leaves room for the thumbstick and jump button.
+-- Layout per device. Touch screens: big MINE button above the thumbstick/jump
+-- row, shop behind a toggle that opens as a centred panel. Desktop: shop docked
+-- on the right, always open.
 local camera = workspace.CurrentCamera
+local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local function adapt()
-	local w = camera.ViewportSize.X
-	shop.Size = if w < 700 then UDim2.new(0, 220, 1, -110) else UDim2.new(0, 300, 1, -110)
+	local size = camera.ViewportSize
+	local short = math.min(size.X, size.Y)
+	uiScale.Scale = math.clamp(short / 720, 0.7, 1)
+
+	if isTouch or size.X < 700 then
+		shopToggle.Visible = true
+		closeShop.Visible = true
+		shop.AnchorPoint = Vector2.new(0.5, 0.5)
+		shop.Position = UDim2.fromScale(0.5, 0.5)
+		shop.Size = UDim2.new(0, 340, 0.85, 0)
+		shop.ZIndex = 5
+		-- Bottom-centre, lifted above the jump button row; wide enough for thumbs.
+		mineButton.Size = UDim2.fromOffset(220, 90)
+		mineButton.Position = UDim2.new(0.5, 0, 1, -40)
+	else
+		shopToggle.Visible = false
+		closeShop.Visible = false
+		shop.Visible = true
+		shop.AnchorPoint = Vector2.new(1, 0)
+		shop.Position = UDim2.new(1, -12, 0, 12)
+		shop.Size = UDim2.new(0, 300, 1, -110)
+		mineButton.Size = UDim2.fromOffset(200, 64)
+		mineButton.Position = UDim2.new(0.5, 0, 1, -24)
+	end
+end
+if isTouch then
+	shop.Visible = false -- start closed on phones so the cavern is visible
 end
 camera:GetPropertyChangedSignal("ViewportSize"):Connect(adapt)
 adapt()
