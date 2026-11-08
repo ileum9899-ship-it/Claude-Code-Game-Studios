@@ -1,4 +1,4 @@
-// Life RP - world clock.
+﻿// Life RP - world clock.
 
 #include "LifeGameState.h"
 #include "LifeRules.h"
@@ -49,9 +49,9 @@ bool ALifeGameState::IsNight() const
 
 FString ALifeGameState::GetClockText() const
 {
-	static const TCHAR* Weekdays[] = { TEXT("Mon"), TEXT("Tue"), TEXT("Wed"), TEXT("Thu"), TEXT("Fri"), TEXT("Sat"), TEXT("Sun") };
+	static const TCHAR* Weekdays[] = { TEXT("월"), TEXT("화"), TEXT("수"), TEXT("목"), TEXT("금"), TEXT("토"), TEXT("일") };
 	const int32 TotalMinutes = FMath::FloorToInt(MinuteOfDay);
-	return FString::Printf(TEXT("%s   Day %d   %02d:%02d"), Weekdays[(Day - 1) % 7], Day, TotalMinutes / 60, TotalMinutes % 60);
+	return FString::Printf(TEXT("%s요일   %d일차   %02d:%02d"), Weekdays[(Day - 1) % 7], Day, TotalMinutes / 60, TotalMinutes % 60);
 }
 
 void ALifeGameState::SetTimeMultiplier(float Multiplier)

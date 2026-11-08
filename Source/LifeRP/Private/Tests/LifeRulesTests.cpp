@@ -1,4 +1,4 @@
-// Life RP - unit tests for the pure rules in LifeRules.h.
+﻿// Life RP - unit tests for the pure rules in LifeRules.h.
 // Run: UnrealEditor-Cmd <abs>/LifeRP.uproject -ExecCmds="Automation RunTests LifeRP.; Quit" -unattended -nullrhi -stdout
 
 #include "LifeRules.h"
@@ -180,10 +180,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSocialRelationshipLabelsTest, "LifeRP.Social.R
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FSocialRelationshipLabelsTest::RunTest(const FString& Parameters)
 {
-	TestEqual(TEXT("0"), LifeRules::RelationshipLabel(0), FString(TEXT("Stranger")));
-	TestEqual(TEXT("50"), LifeRules::RelationshipLabel(50), FString(TEXT("Friend")));
-	TestEqual(TEXT("80"), LifeRules::RelationshipLabel(80), FString(TEXT("Best Friend")));
-	TestEqual(TEXT("-40"), LifeRules::RelationshipLabel(-40), FString(TEXT("Rival")));
+	TestEqual(TEXT("0"), LifeRules::RelationshipLabel(0), FString(TEXT("낯선 사람")));
+	TestEqual(TEXT("50"), LifeRules::RelationshipLabel(50), FString(TEXT("친구")));
+	TestEqual(TEXT("80"), LifeRules::RelationshipLabel(80), FString(TEXT("절친")));
+	TestEqual(TEXT("-40"), LifeRules::RelationshipLabel(-40), FString(TEXT("라이벌")));
 	return true;
 }
 

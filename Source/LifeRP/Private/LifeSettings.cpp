@@ -1,4 +1,4 @@
-// Life RP - data-driven tuning defaults. Rationale for each number: design/game-brief.md.
+﻿// Life RP - data-driven tuning defaults. Rationale for each number: design/game-brief.md.
 
 #include "LifeSettings.h"
 
@@ -82,24 +82,24 @@ ULifeSettings::ULifeSettings()
 	ATMWithdrawAmount = 100;
 	CollapseFee = 80;
 
-	Jobs.Add(MakeJob(TEXT("Barista"), TEXT("Barista"), 16.f, 7, 15,
+	Jobs.Add(MakeJob(TEXT("Barista"), TEXT("바리스타"), 16.f, 7, 15,
 		FLifeNeedValues(1.f, 2.f, 2.f, 1.f, -2.f), FLinearColor(0.55f, 0.27f, 0.07f),
-		{ TEXT("Trainee Barista"), TEXT("Barista"), TEXT("Senior Barista"), TEXT("Shift Lead"), TEXT("Cafe Manager") }));
-	Jobs.Add(MakeJob(TEXT("OfficeClerk"), TEXT("Office Clerk"), 22.f, 9, 17,
+		{ TEXT("수습 바리스타"), TEXT("바리스타"), TEXT("시니어 바리스타"), TEXT("매장 리더"), TEXT("카페 매니저") }));
+	Jobs.Add(MakeJob(TEXT("OfficeClerk"), TEXT("사무원"), 22.f, 9, 17,
 		FLifeNeedValues(1.f, 3.f, 1.f, 3.f, 0.f), FLinearColor(0.1f, 0.3f, 0.7f),
-		{ TEXT("Intern"), TEXT("Clerk"), TEXT("Analyst"), TEXT("Team Lead"), TEXT("Director") }));
-	Jobs.Add(MakeJob(TEXT("Mechanic"), TEXT("Mechanic"), 20.f, 12, 20,
+		{ TEXT("인턴"), TEXT("사원"), TEXT("대리"), TEXT("팀장"), TEXT("이사") }));
+	Jobs.Add(MakeJob(TEXT("Mechanic"), TEXT("정비공"), 20.f, 12, 20,
 		FLifeNeedValues(2.f, 4.f, 6.f, 0.f, 0.f), FLinearColor(0.8f, 0.35f, 0.05f),
-		{ TEXT("Apprentice"), TEXT("Mechanic"), TEXT("Senior Mechanic"), TEXT("Master Mechanic"), TEXT("Garage Owner") }));
-	Jobs.Add(MakeJob(TEXT("NightGuard"), TEXT("Night Guard"), 19.f, 22, 6,
+		{ TEXT("견습 정비공"), TEXT("정비공"), TEXT("선임 정비공"), TEXT("정비 마스터"), TEXT("정비소 사장") }));
+	Jobs.Add(MakeJob(TEXT("NightGuard"), TEXT("야간 경비원"), 19.f, 22, 6,
 		FLifeNeedValues(1.f, 3.f, 0.f, 2.f, 1.f), FLinearColor(0.15f, 0.15f, 0.2f),
-		{ TEXT("Guard"), TEXT("Senior Guard"), TEXT("Patrol Lead"), TEXT("Security Chief"), TEXT("Head of Security") }));
+		{ TEXT("경비원"), TEXT("선임 경비원"), TEXT("순찰 팀장"), TEXT("보안 실장"), TEXT("보안 총괄") }));
 
-	ShopItems.Add(MakeItem(TEXT("Coffee"), TEXT("Coffee"), 4, FLifeNeedValues(3.f, 18.f, 0.f, 4.f, 0.f), FLinearColor(0.3f, 0.15f, 0.05f)));
-	ShopItems.Add(MakeItem(TEXT("Burger"), TEXT("Burger Meal"), 12, FLifeNeedValues(55.f, 4.f, 0.f, 8.f, 0.f), FLinearColor(0.85f, 0.5f, 0.15f)));
-	ShopItems.Add(MakeItem(TEXT("Salad"), TEXT("Fresh Salad"), 9, FLifeNeedValues(35.f, 6.f, 0.f, 2.f, 0.f), FLinearColor(0.2f, 0.7f, 0.2f)));
-	ShopItems.Add(MakeItem(TEXT("EnergyDrink"), TEXT("Energy Drink"), 5, FLifeNeedValues(2.f, 25.f, 0.f, 3.f, 0.f), FLinearColor(0.1f, 0.8f, 0.9f)));
-	ShopItems.Add(MakeItem(TEXT("ProteinShake"), TEXT("Protein Shake"), 7, FLifeNeedValues(20.f, 10.f, 0.f, 2.f, 0.f), FLinearColor(0.9f, 0.85f, 0.75f)));
+	ShopItems.Add(MakeItem(TEXT("Coffee"), TEXT("커피"), 4, FLifeNeedValues(3.f, 18.f, 0.f, 4.f, 0.f), FLinearColor(0.3f, 0.15f, 0.05f)));
+	ShopItems.Add(MakeItem(TEXT("Burger"), TEXT("버거 세트"), 12, FLifeNeedValues(55.f, 4.f, 0.f, 8.f, 0.f), FLinearColor(0.85f, 0.5f, 0.15f)));
+	ShopItems.Add(MakeItem(TEXT("Salad"), TEXT("신선한 샐러드"), 9, FLifeNeedValues(35.f, 6.f, 0.f, 2.f, 0.f), FLinearColor(0.2f, 0.7f, 0.2f)));
+	ShopItems.Add(MakeItem(TEXT("EnergyDrink"), TEXT("에너지 드링크"), 5, FLifeNeedValues(2.f, 25.f, 0.f, 3.f, 0.f), FLinearColor(0.1f, 0.8f, 0.9f)));
+	ShopItems.Add(MakeItem(TEXT("ProteinShake"), TEXT("프로틴 셰이크"), 7, FLifeNeedValues(20.f, 10.f, 0.f, 2.f, 0.f), FLinearColor(0.9f, 0.85f, 0.75f)));
 
 	TownSeed = 1337;
 	BlocksPerSide = 5;
@@ -110,21 +110,21 @@ ULifeSettings::ULifeSettings()
 	TrafficCarCount = 8;
 	bStreetLightShadows = false;
 	CitizenNames = {
-		TEXT("Maya"), TEXT("Leo"), TEXT("Aiko"), TEXT("Sam"), TEXT("Priya"), TEXT("Jonas"), TEXT("Elena"), TEXT("Kwame"),
-		TEXT("Noor"), TEXT("Diego"), TEXT("Hana"), TEXT("Theo"), TEXT("Zara"), TEXT("Mateo"), TEXT("Ines"), TEXT("Ravi"),
-		TEXT("Lena"), TEXT("Omar"), TEXT("Yuki"), TEXT("Felix"), TEXT("Ada"), TEXT("Bruno"), TEXT("Chloe"), TEXT("Dev"),
-		TEXT("Freya"), TEXT("Gus"), TEXT("Iris"), TEXT("Kai"), TEXT("Luz"), TEXT("Nico") };
+		TEXT("민준"), TEXT("서연"), TEXT("지호"), TEXT("하은"), TEXT("도윤"), TEXT("수아"), TEXT("시우"), TEXT("지유"),
+		TEXT("예준"), TEXT("서윤"), TEXT("주원"), TEXT("하린"), TEXT("건우"), TEXT("지아"), TEXT("우진"), TEXT("채원"),
+		TEXT("현우"), TEXT("다은"), TEXT("선우"), TEXT("예린"), TEXT("유준"), TEXT("소율"), TEXT("정우"), TEXT("윤서"),
+		TEXT("승민"), TEXT("가은"), TEXT("태윤"), TEXT("나은"), TEXT("은호"), TEXT("지민") };
 	SmallTalkLines = {
-		TEXT("Lovely day, isn't it?"),
-		TEXT("Have you tried the burgers at the diner?"),
-		TEXT("The garage is hiring, you know."),
-		TEXT("I'm heading to the gym later."),
-		TEXT("Rent went up again..."),
-		TEXT("Did you see the sunset yesterday?"),
-		TEXT("I love walking through the park."),
-		TEXT("Work was brutal today."),
-		TEXT("Good to see you again!"),
-		TEXT("The bank pays a little interest if you save.") };
+		TEXT("날씨 정말 좋네요, 그렇죠?"),
+		TEXT("다이너 버거 먹어 봤어요?"),
+		TEXT("정비소에서 사람 구한대요."),
+		TEXT("이따가 헬스장 갈 거예요."),
+		TEXT("월세가 또 올랐어요..."),
+		TEXT("어제 노을 봤어요?"),
+		TEXT("공원 산책하는 게 너무 좋아요."),
+		TEXT("오늘 일 진짜 힘들었어요."),
+		TEXT("또 만나서 반가워요!"),
+		TEXT("은행에 저축하면 이자가 조금 붙어요.") };
 
 	// Speeds in cm/s: 2800 cm/s ~= 100 km/h.
 	CarMaxSpeed = 2800.f;

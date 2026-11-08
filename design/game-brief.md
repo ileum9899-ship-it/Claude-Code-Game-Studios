@@ -5,6 +5,9 @@
 > (`Source/LifeRP/Private/LifeSettings.cpp`) and is editable in
 > **Project Settings > Game > Life RP**.
 
+> **Language:** all in-game text is Korean (job titles, items, citizen names and dialogue included).
+> The English names in this brief are design references. See `LIFE_RP.md` > Language.
+
 ## 1. Overview
 
 A third-person 3D life simulation with role-play. You are a new resident of a

@@ -13,6 +13,13 @@ class UStaticMesh;
 class ATargetPoint;
 class ALifeStation;
 
+/** A building name the HUD draws in the local language near the entrance. */
+struct FLifeSignLabel
+{
+	FVector Location;
+	FString Text;
+};
+
 /**
  * Builds a seeded grid town at runtime: roads with markings and crosswalks,
  * sidewalks, downtown towers, mid-rise blocks, suburban houses, a central park,
@@ -38,6 +45,9 @@ public:
 
 	const TArray<FVector>& GetWalkNodes() const { return WalkNodes; }
 	const TArray<int32>& GetWalkLinks(int32 Node) const;
+
+	/** Localised building names (the 3D signs keep the Latin brand names). */
+	const TArray<FLifeSignLabel>& GetSignLabels() const { return SignLabels; }
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -72,7 +82,7 @@ private:
 
 	/** Walls with a door gap at local +X, floor, roof, sign, interior light. Returns nothing; Frame is the room centre at floor level. */
 	void BuildRoom(const FTransform& Frame, float Depth, float Width, float Height, float DoorWidth,
-		const FLinearColor& Walls, const FLinearColor& Floor, const FLinearColor& Accent, const FString& Sign);
+		const FLinearColor& Walls, const FLinearColor& Floor, const FLinearColor& Accent, const FString& Sign, const FString& LocalName);
 
 	ALifeStation* SpawnStation(const FTransform& Frame, const FVector& Local, float LocalYaw, ELifeStationType Type, FName Id, const FLinearColor& Accent);
 
@@ -95,6 +105,7 @@ private:
 
 	TArray<FVector> WalkNodes;
 	TArray<TArray<int32>> WalkLinks;
+	TArray<FLifeSignLabel> SignLabels;
 	FTransform PlayerCarSpot;
 	FRandomStream Rand;
 	bool bBuilt = false;

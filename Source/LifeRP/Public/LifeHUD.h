@@ -8,12 +8,15 @@
 
 class UFont;
 class ALifePlayerCharacter;
+class ALifeTownBuilder;
 
 /**
  * Canvas HUD: clock and money, need bars with mood, job status, interaction
  * prompt, toast notifications, activity overlay, speedometer and a TAB status
  * panel. Drawn in code so it needs no widget assets; resolution-independent
- * (designed at 1080p, scaled to the viewport).
+ * (designed at 1080p, scaled to the viewport). Also draws all in-world text
+ * (station labels, building names, speech bubbles) so Hangul renders: the
+ * offline font atlas of TextRenderComponent has no Korean glyphs.
  */
 UCLASS()
 class LIFERP_API ALifeHUD : public AHUD
@@ -44,8 +47,15 @@ private:
 	void DrawActivity(const ALifePlayerCharacter* C);
 	void DrawStatusPanel(const ALifePlayerCharacter* C);
 	void DrawSpeedometer(const ALifePlayerCharacter* C);
+	void DrawWorldLabels(const ALifePlayerCharacter* C);
+	void DrawWorldLabel(const ALifePlayerCharacter* C, const FVector& World, const FString& Text, const FLinearColor& Color,
+		float Size, float MaxDistance, const AActor* Owner);
 
-	UFont* Font() const;
+	/** HUD font: ULifeSettings::HUDFont if set, else the engine medium font. */
+	UFont* Font();
+
+	UPROPERTY() TObjectPtr<UFont> CachedFont;
+	TWeakObjectPtr<ALifeTownBuilder> Town;
 
 	TArray<FToast> Toasts;
 	float UIScale = 1.f;

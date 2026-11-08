@@ -1,4 +1,4 @@
-// Life RP - heads-up display.
+﻿// Life RP - heads-up display.
 
 #include "LifeHUD.h"
 #include "LifeCareerComponent.h"
@@ -8,7 +8,11 @@
 #include "LifeNeedsComponent.h"
 #include "LifePlayerCharacter.h"
 #include "LifePlayerController.h"
+#include "CitizenNPC.h"
 #include "LifeRules.h"
+#include "LifeSettings.h"
+#include "LifeStation.h"
+#include "LifeTownBuilder.h"
 #include "LifeVehicle.h"
 #include "LifeWalletComponent.h"
 #include "CanvasItem.h"
@@ -16,6 +20,8 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "Camera/PlayerCameraManager.h"
 
 namespace
 {
@@ -32,9 +38,18 @@ namespace
 	}
 }
 
-UFont* ALifeHUD::Font() const
+UFont* ALifeHUD::Font()
 {
-	return GEngine ? GEngine->GetMediumFont() : nullptr;
+	if (!CachedFont)
+	{
+		const FSoftObjectPath& Path = ULifeSettings::Get()->HUDFont;
+		CachedFont = Path.IsValid() ? Cast<UFont>(Path.TryLoad()) : nullptr;
+		if (!CachedFont && GEngine)
+		{
+			CachedFont = GEngine->GetMediumFont();
+		}
+	}
+	return CachedFont;
 }
 
 void ALifeHUD::PushNotification(const FString& Message, const FLinearColor& Color)
@@ -110,6 +125,7 @@ void ALifeHUD::DrawHUD()
 		Canvas->DrawItem(Dim);
 	}
 
+	DrawWorldLabels(C);
 	DrawTopLeft(C);
 	DrawNeeds(C);
 	DrawPrompt(C);
@@ -132,27 +148,27 @@ void ALifeHUD::DrawTopLeft(const ALifePlayerCharacter* C)
 		FString Clock = GS->GetClockText();
 		if (GS->GetTimeMultiplier() > 1.5f)
 		{
-			Clock += FString::Printf(TEXT("   >> x%.0f"), GS->GetTimeMultiplier());
+			Clock += FString::Printf(TEXT("   >> x%.0f배속"), GS->GetTimeMultiplier());
 		}
 		DrawLabel(Clock, X + 16.f * UIScale, Y + 10.f * UIScale, TextMain, 1.25f);
 	}
 	const ULifeWalletComponent* W = C->GetWallet();
-	DrawLabel(FString::Printf(TEXT("$%d cash"), W->GetCash()), X + 16.f * UIScale, Y + 46.f * UIScale, Positive, 1.1f);
-	DrawLabel(FString::Printf(TEXT("$%d bank"), W->GetBank()), X + 190.f * UIScale, Y + 46.f * UIScale,
+	DrawLabel(FString::Printf(TEXT("현금 $%d"), W->GetCash()), X + 16.f * UIScale, Y + 46.f * UIScale, Positive, 1.1f);
+	DrawLabel(FString::Printf(TEXT("은행 $%d"), W->GetBank()), X + 190.f * UIScale, Y + 46.f * UIScale,
 		W->GetBank() < 0 ? FLinearColor(1.f, 0.35f, 0.3f) : TextDim, 1.1f);
 
 	const ULifeCareerComponent* Career = C->GetCareer();
-	FString Job = Career->HasJob() ? Career->GetJobSummary() : TEXT("Unemployed - find a job board");
+	FString Job = Career->HasJob() ? Career->GetJobSummary() : TEXT("무직 - 일자리를 찾아보세요");
 	if (Career->IsClockedIn())
 	{
-		Job = FString::Printf(TEXT("AT WORK  +$%.0f   %s"), Career->GetShiftEarnings(), *Career->GetJobSummary());
+		Job = FString::Printf(TEXT("근무 중  +$%.0f   %s"), Career->GetShiftEarnings(), *Career->GetJobSummary());
 	}
 	DrawLabel(Job, X + 16.f * UIScale, Y + 80.f * UIScale, Career->IsClockedIn() ? Positive : TextDim, 0.85f);
 }
 
 void ALifeHUD::DrawNeeds(const ALifePlayerCharacter* C)
 {
-	static const TCHAR* Names[] = { TEXT("Hunger"), TEXT("Energy"), TEXT("Hygiene"), TEXT("Fun"), TEXT("Social") };
+	static const TCHAR* Names[] = { TEXT("배고픔"), TEXT("에너지"), TEXT("위생"), TEXT("재미"), TEXT("사교") };
 	const ULifeNeedsComponent* Needs = C->GetNeeds();
 	const float W = 300.f * UIScale;
 	const float X = 24.f * UIScale;
@@ -162,7 +178,7 @@ void ALifeHUD::DrawNeeds(const ALifePlayerCharacter* C)
 	DrawPanel(X, Y, W + 32.f * UIScale, Rows * RowH + 20.f * UIScale);
 
 	const float Mood = Needs->GetMood();
-	DrawBar(FString::Printf(TEXT("MOOD  %.0f"), Mood), Mood / 100.f, X + 16.f * UIScale, Y + 8.f * UIScale, W);
+	DrawBar(FString::Printf(TEXT("기분  %.0f"), Mood), Mood / 100.f, X + 16.f * UIScale, Y + 8.f * UIScale, W);
 	int32 Row = 1;
 	for (ELifeNeed Need : TEnumRange<ELifeNeed>())
 	{
@@ -186,7 +202,9 @@ void ALifeHUD::DrawPrompt(const ALifePlayerCharacter* C)
 	}
 	const FString Prompt = FString::Printf(TEXT("[E]  %s"), *Target->GetInteractionPrompt(C));
 	const bool bUsable = Target->CanInteract(C);
-	const float W = FMath::Max(260.f, Prompt.Len() * 13.f) * UIScale;
+	float TextW = 0.f, TextH = 0.f;
+	Canvas->TextSize(Font(), Prompt, TextW, TextH, 1.1f * UIScale, 1.1f * UIScale);
+	const float W = FMath::Max(260.f * UIScale, TextW + 48.f * UIScale);
 	const float X = Canvas->ClipX * 0.5f - W * 0.5f;
 	const float Y = Canvas->ClipY * 0.72f;
 	DrawPanel(X, Y, W, 44.f * UIScale, 0.65f);
@@ -222,7 +240,7 @@ void ALifeHUD::DrawActivity(const ALifePlayerCharacter* C)
 		return;
 	}
 	const int32 Minutes = FMath::CeilToInt(C->GetActivityRemainingMinutes());
-	const FString Text = FString::Printf(TEXT("%s   %dh %02dm left      [E] stop"), *C->GetActivityLabel(), Minutes / 60, Minutes % 60);
+	const FString Text = FString::Printf(TEXT("%s   남은 시간 %d시간 %02d분      [E] 중단"), *C->GetActivityLabel(), Minutes / 60, Minutes % 60);
 	DrawLabel(Text, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.42f, TextMain, 1.5f, true);
 }
 
@@ -237,7 +255,7 @@ void ALifeHUD::DrawSpeedometer(const ALifePlayerCharacter* C)
 	const float Y = Canvas->ClipY - 130.f * UIScale;
 	DrawPanel(X, Y, 226.f * UIScale, 106.f * UIScale);
 	DrawLabel(FString::Printf(TEXT("%3.0f"), Car->GetSpeedKmh()), X + 113.f * UIScale, Y + 8.f * UIScale, TextMain, 3.f, true);
-	DrawLabel(TEXT("km/h      [E] exit"), X + 113.f * UIScale, Y + 74.f * UIScale, TextDim, 0.85f, true);
+	DrawLabel(TEXT("km/h      [E] 내리기"), X + 113.f * UIScale, Y + 74.f * UIScale, TextDim, 0.85f, true);
 }
 
 void ALifeHUD::DrawStatusPanel(const ALifePlayerCharacter* C)
@@ -254,14 +272,14 @@ void ALifeHUD::DrawStatusPanel(const ALifePlayerCharacter* C)
 		Line += 30.f * UIScale * Size;
 	};
 
-	Row(TEXT("LIFE STATUS"), TextMain, 1.4f);
+	Row(TEXT("생활 현황"), TextMain, 1.4f);
 	const ULifeCareerComponent* Career = C->GetCareer();
-	Row(Career->HasJob() ? FString::Printf(TEXT("Career: %s   (%.1f h worked)"), *Career->GetJobSummary(), Career->GetTotalHours()) : TEXT("Career: unemployed"), TextDim);
-	Row(FString::Printf(TEXT("Skills: Fitness %.1f / 10    Charisma %.1f / 10"), C->GetFitness(), C->GetCharisma()), TextDim);
-	Row(FString::Printf(TEXT("Mood: %.0f    Work performance x%.2f"), C->GetNeeds()->GetMood(), LifeRules::ComputePerformance(C->GetNeeds()->GetMood())), TextDim);
+	Row(Career->HasJob() ? FString::Printf(TEXT("직업: %s   (%.1f시간 근무)"), *Career->GetJobSummary(), Career->GetTotalHours()) : TEXT("직업: 무직"), TextDim);
+	Row(FString::Printf(TEXT("스킬: 체력 %.1f / 10    매력 %.1f / 10"), C->GetFitness(), C->GetCharisma()), TextDim);
+	Row(FString::Printf(TEXT("기분: %.0f    업무 효율 x%.2f"), C->GetNeeds()->GetMood(), LifeRules::ComputePerformance(C->GetNeeds()->GetMood())), TextDim);
 	Line += 8.f * UIScale;
 
-	Row(TEXT("RELATIONSHIPS"), TextMain, 1.1f);
+	Row(TEXT("인간관계"), TextMain, 1.1f);
 	TArray<TPair<FString, int32>> Sorted;
 	for (const TPair<FString, int32>& Pair : C->GetRelationships())
 	{
@@ -270,7 +288,7 @@ void ALifeHUD::DrawStatusPanel(const ALifePlayerCharacter* C)
 	Sorted.Sort([](const TPair<FString, int32>& A, const TPair<FString, int32>& B) { return A.Value > B.Value; });
 	if (Sorted.Num() == 0)
 	{
-		Row(TEXT("Nobody yet - go say hi to people around town."), TextDim);
+		Row(TEXT("아직 아무도 없습니다 - 마을 사람들에게 인사해 보세요."), TextDim);
 	}
 	for (int32 i = 0; i < FMath::Min(6, Sorted.Num()); ++i)
 	{
@@ -278,9 +296,93 @@ void ALifeHUD::DrawStatusPanel(const ALifePlayerCharacter* C)
 	}
 	Line += 8.f * UIScale;
 
-	Row(TEXT("CONTROLS"), TextMain, 1.1f);
-	Row(TEXT("WASD move   Mouse look   Wheel zoom   Shift run   Space jump"), TextDim, 0.85f);
-	Row(TEXT("E interact / enter car / stop activity   TAB this panel"), TextDim, 0.85f);
-	Row(TEXT("Car: W/S drive   A/D steer   Space handbrake   E exit"), TextDim, 0.85f);
-	Row(TEXT("F5 save   F9 load   (autosaves when you wake up)"), TextDim, 0.85f);
+	Row(TEXT("조작법"), TextMain, 1.1f);
+	Row(TEXT("WASD 이동   마우스 시점   휠 줌   Shift 달리기   Space 점프"), TextDim, 0.85f);
+	Row(TEXT("E 상호작용 / 차 타기 / 활동 중단   TAB 이 화면"), TextDim, 0.85f);
+	Row(TEXT("자동차: W/S 가속·후진   A/D 조향   Space 핸드브레이크   E 내리기"), TextDim, 0.85f);
+	Row(TEXT("F5 저장   F9 불러오기   (잠에서 깨면 자동 저장)"), TextDim, 0.85f);
+}
+
+// ------------------------------------------------------------------ In-world text
+
+void ALifeHUD::DrawWorldLabel(const ALifePlayerCharacter* C, const FVector& World, const FString& Text, const FLinearColor& Color,
+	float Size, float MaxDistance, const AActor* Owner)
+{
+	if (Text.IsEmpty() || !PlayerOwner || !PlayerOwner->PlayerCameraManager)
+	{
+		return;
+	}
+	const FVector CamLoc = PlayerOwner->PlayerCameraManager->GetCameraLocation();
+	const FVector CamFwd = PlayerOwner->PlayerCameraManager->GetCameraRotation().Vector();
+	const AActor* Viewer = C->GetVehicle() ? static_cast<const AActor*>(C->GetVehicle()) : static_cast<const AActor*>(C);
+	const float Distance = FVector::Dist(Viewer->GetActorLocation(), World);
+	if (Distance > MaxDistance || FVector::DotProduct(World - CamLoc, CamFwd) <= 0.f)
+	{
+		return;
+	}
+
+	// Hide labels behind walls.
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(LifeHUDLabel), false);
+	Params.AddIgnoredActor(C);
+	Params.AddIgnoredActor(Viewer);
+	if (Owner)
+	{
+		Params.AddIgnoredActor(Owner);
+	}
+	FHitResult Hit;
+	if (GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, World, ECC_Visibility, Params))
+	{
+		return;
+	}
+
+	const FVector Screen = Project(World);
+	const float Alpha = FMath::Clamp((MaxDistance - Distance) / (MaxDistance * 0.3f), 0.f, 1.f);
+	const float Scale = Size * UIScale;
+	float TextW = 0.f, TextH = 0.f;
+	Canvas->TextSize(Font(), Text, TextW, TextH, Scale, Scale);
+	const float Pad = 10.f * UIScale;
+	DrawPanel(Screen.X - TextW * 0.5f - Pad, Screen.Y - TextH - Pad, TextW + Pad * 2.f, TextH + Pad * 1.4f, 0.6f * Alpha);
+	FLinearColor Faded = Color;
+	Faded.A = Alpha;
+	DrawLabel(Text, Screen.X, Screen.Y - TextH - Pad * 0.4f, Faded, Size, true);
+}
+
+void ALifeHUD::DrawWorldLabels(const ALifePlayerCharacter* C)
+{
+	UWorld* World = GetWorld();
+
+	if (!Town.IsValid())
+	{
+		TActorIterator<ALifeTownBuilder> It(World);
+		Town = It ? *It : nullptr;
+	}
+	if (const ALifeTownBuilder* T = Town.Get())
+	{
+		for (const FLifeSignLabel& Sign : T->GetSignLabels())
+		{
+			DrawWorldLabel(C, Sign.Location, Sign.Text, FLinearColor(1.f, 0.92f, 0.75f), 1.15f, 3500.f, T);
+		}
+	}
+
+	if (C->IsDriving())
+	{
+		return;
+	}
+	for (TActorIterator<ALifeStation> It(World); It; ++It)
+	{
+		DrawWorldLabel(C, It->GetWorldLabelLocation(), It->GetWorldLabel(), TextMain, 0.85f, 900.f, *It);
+	}
+	for (TActorIterator<ACitizenNPC> It(World); It; ++It)
+	{
+		if (It->IsAtHome())
+		{
+			continue;
+		}
+		const FString Line = It->GetSpeechLine();
+		if (!Line.IsEmpty())
+		{
+			DrawWorldLabel(C, It->GetActorLocation() + FVector(0.f, 0.f, 120.f),
+				FString::Printf(TEXT("%s: %s"), *It->GetCitizenName(), *Line), TextMain, 0.95f, 1500.f, *It);
+		}
+	}
 }

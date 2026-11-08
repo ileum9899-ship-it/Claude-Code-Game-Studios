@@ -1,4 +1,4 @@
-// Life RP - townsfolk.
+﻿// Life RP - townsfolk.
 
 #include "CitizenNPC.h"
 #include "AIController.h"
@@ -8,26 +8,14 @@
 #include "LifeRules.h"
 #include "LifeSettings.h"
 #include "LifeTownBuilder.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/PlayerController.h"
 
 ACitizenNPC::ACitizenNPC()
 {
 	AIControllerClass = AAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-
-	SpeechText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Speech"));
-	SpeechText->SetupAttachment(RootComponent);
-	SpeechText->SetRelativeLocation(FVector(0.f, 0.f, 130.f));
-	SpeechText->SetHorizontalAlignment(EHTA_Center);
-	SpeechText->SetVerticalAlignment(EVRTA_TextBottom);
-	SpeechText->SetWorldSize(14.f);
-	SpeechText->SetTextRenderColor(FColor::White);
-	SpeechText->SetHiddenInGame(true);
 
 	GetCharacterMovement()->MaxWalkSpeed = 150.f;
 	GetCharacterMovement()->bUseRVOAvoidance = true;
@@ -53,7 +41,7 @@ void ACitizenNPC::InitCitizen(const FString& InName, const FLifeAppearance& InAp
 FString ACitizenNPC::GetInteractionPrompt(const ALifePlayerCharacter* Player) const
 {
 	const int32 Rel = Player ? Player->GetRelationship(CitizenName) : 0;
-	return FString::Printf(TEXT("Talk to %s  (%s %d)"), *CitizenName, *LifeRules::RelationshipLabel(Rel), Rel);
+	return FString::Printf(TEXT("%s에게 말 걸기  (%s %d)"), *CitizenName, *LifeRules::RelationshipLabel(Rel), Rel);
 }
 
 void ACitizenNPC::Interact(ALifePlayerCharacter* Player)
@@ -74,23 +62,22 @@ void ACitizenNPC::Respond(ALifePlayerCharacter* Player, int32 Relationship)
 	FString Line;
 	if (Player && Player->GetNeeds() && Player->GetNeeds()->GetNeed(ELifeNeed::Hygiene) < 15.f)
 	{
-		Line = TEXT("Uh... have you showered lately?");
+		Line = TEXT("어... 요즘 샤워는 하셨어요?");
 	}
 	else if (Relationship >= 80)
 	{
-		Line = TEXT("My best friend! Always great to see you.");
+		Line = TEXT("내 절친! 볼 때마다 반가워!");
 	}
 	else if (S->SmallTalkLines.Num() > 0)
 	{
 		Line = S->SmallTalkLines[Random.RandRange(0, S->SmallTalkLines.Num() - 1)];
 	}
-	Say(FString::Printf(TEXT("%s: %s"), *CitizenName, *Line), 4.f);
+	Say(Line, 4.f);
 }
 
 void ACitizenNPC::Say(const FString& Line, float Seconds)
 {
-	SpeechText->SetText(FText::FromString(Line));
-	SpeechText->SetHiddenInGame(false);
+	SpeechLine = Line;
 	SpeechTimer = Seconds;
 }
 
@@ -142,22 +129,7 @@ void ACitizenNPC::Tick(float DeltaSeconds)
 		return;
 	}
 
-	if (SpeechTimer > 0.f)
-	{
-		SpeechTimer -= DeltaSeconds;
-		if (SpeechTimer <= 0.f)
-		{
-			SpeechText->SetHiddenInGame(true);
-		}
-		else if (const APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			if (PC->PlayerCameraManager)
-			{
-				const FVector ToCam = PC->PlayerCameraManager->GetCameraLocation() - SpeechText->GetComponentLocation();
-				SpeechText->SetWorldRotation(FRotator(0.f, ToCam.Rotation().Yaw, 0.f));
-			}
-		}
-	}
+	SpeechTimer = FMath::Max(0.f, SpeechTimer - DeltaSeconds);
 
 	if (PauseTimer > 0.f)
 	{

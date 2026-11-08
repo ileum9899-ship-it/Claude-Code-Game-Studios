@@ -32,7 +32,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Life|Time") int32 GetDay() const { return Day; }
 	UFUNCTION(BlueprintPure, Category = "Life|Time") bool IsNight() const;
 
-	/** e.g. "Tue  Day 3  08:42". */
+	/** Weekday, day number and HH:MM, localised (see LifeGameState.cpp). */
 	UFUNCTION(BlueprintPure, Category = "Life|Time") FString GetClockText() const;
 
 	/** Fast-forward factor (1 = normal). */

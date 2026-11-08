@@ -1,4 +1,4 @@
-// Life RP - pure gameplay rules.
+﻿// Life RP - pure gameplay rules.
 
 #include "LifeRules.h"
 
@@ -145,10 +145,10 @@ namespace LifeRules
 
 	FString RelationshipLabel(int32 Relationship)
 	{
-		if (Relationship >= 80) return TEXT("Best Friend");
-		if (Relationship >= 50) return TEXT("Friend");
-		if (Relationship >= 20) return TEXT("Acquaintance");
-		if (Relationship > -20) return TEXT("Stranger");
-		return TEXT("Rival");
+		if (Relationship >= 80) return TEXT("절친");
+		if (Relationship >= 50) return TEXT("친구");
+		if (Relationship >= 20) return TEXT("지인");
+		if (Relationship > -20) return TEXT("낯선 사람");
+		return TEXT("라이벌");
 	}
 }

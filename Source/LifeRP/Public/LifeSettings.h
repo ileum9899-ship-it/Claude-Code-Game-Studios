@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "UObject/SoftObjectPath.h"
 #include "LifeTypes.h"
 #include "LifeSettings.generated.h"
 
@@ -106,6 +107,14 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Vehicles") float CarDrag;
 	UPROPERTY(Config, EditAnywhere, Category = "Vehicles") float CarSteerDegreesPerSecond;
 	UPROPERTY(Config, EditAnywhere, Category = "Vehicles") float TrafficCruiseSpeed;
+
+	// ---------------------------------------------------------------- UI
+	/**
+	 * Font for the HUD. Empty = engine default (Roboto with its built-in CJK fallback).
+	 * If Hangul shows as boxes on your engine build, import a Korean font
+	 * (e.g. Noto Sans KR) as a runtime UFont and point this at it.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "UI", meta = (AllowedClasses = "/Script/Engine.Font")) FSoftObjectPath HUDFont;
 
 	// ---------------------------------------------------------------- Save
 	UPROPERTY(Config, EditAnywhere, Category = "Save") FString SaveSlotName;

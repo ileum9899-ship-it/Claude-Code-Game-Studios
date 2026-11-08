@@ -33,6 +33,10 @@ public:
 	ELifeStationType GetStationType() const { return Type; }
 	FName GetItemId() const { return ItemId; }
 
+	/** Floating name drawn by the HUD when the player is near (empty = none). */
+	const FString& GetWorldLabel() const { return WorldLabel; }
+	FVector GetWorldLabelLocation() const { return GetActorTransform().TransformPosition(LabelOffset); }
+
 	/** World transform the player is moved to while using this station (beds, showers). */
 	FTransform GetUseTransform() const;
 
@@ -43,6 +47,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Life") ELifeStationType Type = ELifeStationType::Bed;
 	UPROPERTY(EditAnywhere, Category = "Life") FName ItemId;
 	UPROPERTY(EditAnywhere, Category = "Life") FLinearColor Accent = FLinearColor::White;
+
+	/**
+	 * Label text and its position relative to the station. Drawn on the HUD rather than
+	 * with a TextRenderComponent, whose offline font atlas has no Hangul glyphs.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Life") FString WorldLabel;
+	UPROPERTY(EditAnywhere, Category = "Life") FVector LabelOffset = FVector(0, 0, 180);
 
 	/** Use location relative to the station; zero = player stays where they are. */
 	UPROPERTY(EditAnywhere, Category = "Life") FVector UseOffset = FVector::ZeroVector;

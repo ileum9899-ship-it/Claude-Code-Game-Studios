@@ -1,4 +1,4 @@
-// Life RP - drivable car and traffic.
+﻿// Life RP - drivable car and traffic.
 
 #include "LifeVehicle.h"
 #include "LifeGameState.h"
@@ -172,7 +172,7 @@ void ALifeVehicle::SetupAsTraffic(const TArray<FVector>& Route, int32 StartIndex
 
 FString ALifeVehicle::GetInteractionPrompt(const ALifePlayerCharacter* Player) const
 {
-	return bTraffic ? TEXT("Someone else's car") : TEXT("Drive");
+	return bTraffic ? TEXT("남의 차") : TEXT("운전하기");
 }
 
 bool ALifeVehicle::CanInteract(const ALifePlayerCharacter* Player) const
@@ -229,7 +229,7 @@ void ALifeVehicle::ExitPressed()
 	}
 	if (FMath::Abs(Speed) > 350.f)
 	{
-		LifeNotify(this, TEXT("Slow down before getting out."), FLinearColor(1.f, 0.85f, 0.4f));
+		LifeNotify(this, TEXT("내리기 전에 속도를 줄이세요."), FLinearColor(1.f, 0.85f, 0.4f));
 		return;
 	}
 	Speed = 0.f;
@@ -373,7 +373,7 @@ void ALifeVehicle::Simulate(float DeltaSeconds)
 	{
 		if (Driver.IsValid() && FMath::Abs(Speed) > 900.f)
 		{
-			LifeNotify(this, TEXT("Crash! Drive carefully."), FLinearColor(1.f, 0.4f, 0.3f));
+			LifeNotify(this, TEXT("쾅! 조심해서 운전하세요."), FLinearColor(1.f, 0.4f, 0.3f));
 		}
 		// Slide along the obstacle instead of sticking to it.
 		const FVector Slide = FVector::VectorPlaneProject(Forward * Speed * DeltaSeconds * (1.f - Hit.Time), Hit.Normal);

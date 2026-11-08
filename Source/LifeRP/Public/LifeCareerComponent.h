@@ -40,7 +40,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Life|Career") float GetTotalHours() const { return TotalHours; }
 	UFUNCTION(BlueprintPure, Category = "Life|Career") float GetShiftEarnings() const { return ShiftEarnings; }
 
-	/** e.g. "Senior Barista (Lv 3)  07:00-15:00". Empty if unemployed. */
+	/** Title, level and shift hours (localised). Empty if unemployed. */
 	UFUNCTION(BlueprintPure, Category = "Life|Career") FString GetJobSummary() const;
 
 	/** Restores from a save. */

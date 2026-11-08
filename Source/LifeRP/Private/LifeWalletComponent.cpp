@@ -1,4 +1,4 @@
-// Life RP - money.
+﻿// Life RP - money.
 
 #include "LifeWalletComponent.h"
 #include "LifeGameState.h"
@@ -36,7 +36,7 @@ bool ULifeWalletComponent::TrySpend(int32 Amount, const FString& Reason)
 	}
 	if (!CanAfford(Amount))
 	{
-		LifeNotify(this, FString::Printf(TEXT("Can't afford %s ($%d)"), *Reason, Amount), FLinearColor(1.f, 0.35f, 0.3f));
+		LifeNotify(this, FString::Printf(TEXT("돈이 부족합니다: %s ($%d)"), *Reason, Amount), FLinearColor(1.f, 0.35f, 0.3f));
 		return false;
 	}
 	const int32 FromCash = FMath::Min(Cash, Amount);
@@ -76,9 +76,9 @@ void ULifeWalletComponent::HandleNewDay(int32 NewDay)
 	const ULifeSettings* S = ULifeSettings::Get();
 	const int32 Interest = LifeRules::DailyInterest(Bank, S->DailyBankInterest);
 	Bank += Interest - S->DailyRent;
-	LifeNotify(this, FString::Printf(TEXT("Day %d: rent -$%d, interest +$%d"), NewDay, S->DailyRent, Interest), FLinearColor(0.8f, 0.85f, 1.f));
+	LifeNotify(this, FString::Printf(TEXT("%d일차: 월세 -$%d, 이자 +$%d"), NewDay, S->DailyRent, Interest), FLinearColor(0.8f, 0.85f, 1.f));
 	if (Bank < 0)
 	{
-		LifeNotify(this, TEXT("Your bank account is overdrawn! Find work."), FLinearColor(1.f, 0.3f, 0.25f));
+		LifeNotify(this, TEXT("은행 잔고가 마이너스입니다! 일자리를 구하세요."), FLinearColor(1.f, 0.3f, 0.25f));
 	}
 }

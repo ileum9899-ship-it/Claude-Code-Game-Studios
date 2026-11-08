@@ -1,4 +1,4 @@
-// Life RP - the player's resident.
+﻿// Life RP - the player's resident.
 
 #include "LifePlayerCharacter.h"
 #include "CitizenNPC.h"
@@ -117,7 +117,7 @@ void ALifePlayerCharacter::JumpPressed()
 {
 	if (IsBusy())
 	{
-		EndActivity(TEXT("You stopped."));
+		EndActivity(TEXT("그만뒀습니다."));
 		return;
 	}
 	Jump();
@@ -127,7 +127,7 @@ void ALifePlayerCharacter::InteractPressed()
 {
 	if (IsBusy())
 	{
-		EndActivity(TEXT("You stopped."));
+		EndActivity(TEXT("그만뒀습니다."));
 		return;
 	}
 	AActor* Focus = Interaction->GetFocus();
@@ -138,7 +138,7 @@ void ALifePlayerCharacter::InteractPressed()
 	}
 	if (!Target->CanInteract(this))
 	{
-		LifeNotify(this, FString::Printf(TEXT("Can't: %s"), *Target->GetInteractionPrompt(this)), FLinearColor(1.f, 0.5f, 0.4f));
+		LifeNotify(this, FString::Printf(TEXT("할 수 없음: %s"), *Target->GetInteractionPrompt(this)), FLinearColor(1.f, 0.5f, 0.4f));
 		return;
 	}
 	Target->Interact(this);
@@ -180,10 +180,10 @@ FString ALifePlayerCharacter::GetActivityLabel() const
 {
 	switch (Activity)
 	{
-	case ELifeActivity::Sleep:   return TEXT("Sleeping");
-	case ELifeActivity::Shower:  return TEXT("Showering");
-	case ELifeActivity::WatchTV: return TEXT("Watching TV");
-	case ELifeActivity::Workout: return TEXT("Working out");
+	case ELifeActivity::Sleep:   return TEXT("수면 중");
+	case ELifeActivity::Shower:  return TEXT("샤워 중");
+	case ELifeActivity::WatchTV: return TEXT("TV 시청 중");
+	case ELifeActivity::Workout: return TEXT("운동 중");
 	default:                     return FString();
 	}
 }
@@ -208,7 +208,7 @@ void ALifePlayerCharacter::BeginActivity(ELifeActivity NewActivity, ALifeStation
 		const float Hour = GS->GetHourOfDay();
 		if (Station && Needs->GetNeed(ELifeNeed::Energy) > 80.f && Hour > S->WakeHour + 1.f && Hour < 20.f)
 		{
-			LifeNotify(this, TEXT("You're not tired yet."), FLinearColor(1.f, 0.85f, 0.4f));
+			LifeNotify(this, TEXT("아직 피곤하지 않습니다."), FLinearColor(1.f, 0.85f, 0.4f));
 			return;
 		}
 		ActivityTuning = S->Sleep;
@@ -224,7 +224,7 @@ void ALifePlayerCharacter::BeginActivity(ELifeActivity NewActivity, ALifeStation
 
 	if (Career->IsClockedIn())
 	{
-		Career->ClockOut(TEXT("You stopped working"));
+		Career->ClockOut(TEXT("일을 멈췄습니다"));
 	}
 
 	Activity = NewActivity;
@@ -250,7 +250,7 @@ void ALifePlayerCharacter::BeginActivity(ELifeActivity NewActivity, ALifeStation
 	SetLyingDown(bLie);
 
 	GS->SetTimeMultiplier(ActivityTuning.TimeMultiplier);
-	LifeNotify(this, FString::Printf(TEXT("%s...  (E / Space to stop)"), *GetActivityLabel()), FLinearColor(0.85f, 0.9f, 1.f));
+	LifeNotify(this, FString::Printf(TEXT("%s...  (E / Space로 중단)"), *GetActivityLabel()), FLinearColor(0.85f, 0.9f, 1.f));
 }
 
 void ALifePlayerCharacter::TickActivity(float DeltaSeconds)
@@ -278,7 +278,7 @@ void ALifePlayerCharacter::TickActivity(float DeltaSeconds)
 	if (ActivityRemainingMinutes <= 0.f || bRested)
 	{
 		const bool bWasSleep = Activity == ELifeActivity::Sleep;
-		EndActivity(bWasSleep ? TEXT("Good morning! You feel rested.") : TEXT("Done."));
+		EndActivity(bWasSleep ? TEXT("좋은 아침! 개운하게 일어났습니다.") : TEXT("완료했습니다."));
 		if (bWasSleep && ULifeSettings::Get()->bAutoSaveOnWake)
 		{
 			if (ALifePlayerController* PC = Cast<ALifePlayerController>(GetController()))
@@ -289,7 +289,7 @@ void ALifePlayerCharacter::TickActivity(float DeltaSeconds)
 	}
 	else if (Activity == ELifeActivity::Workout && Needs->GetNeed(ELifeNeed::Energy) <= 5.f)
 	{
-		EndActivity(TEXT("Too exhausted to keep going."));
+		EndActivity(TEXT("너무 지쳐서 더는 못 하겠습니다."));
 	}
 }
 
@@ -333,7 +333,7 @@ void ALifePlayerCharacter::EnterVehicle(ALifeVehicle* Vehicle)
 	}
 	if (Career->IsClockedIn())
 	{
-		Career->ClockOut(TEXT("You left work"));
+		Career->ClockOut(TEXT("근무지를 벗어났습니다"));
 	}
 	CurrentVehicle = Vehicle;
 	Interaction->ClearFocus();
@@ -404,7 +404,7 @@ void ALifePlayerCharacter::TalkTo(ACitizenNPC* Citizen)
 		Charisma = FMath::Min(10.f, Charisma + S->CharismaPerConversation);
 		if (LifeRules::RelationshipLabel(NewRel) != LifeRules::RelationshipLabel(Rel))
 		{
-			LifeNotify(this, FString::Printf(TEXT("%s is now your %s."), *Name, *LifeRules::RelationshipLabel(NewRel)), FLinearColor(1.f, 0.6f, 0.85f));
+			LifeNotify(this, FString::Printf(TEXT("%s 님과의 관계: %s"), *Name, *LifeRules::RelationshipLabel(NewRel)), FLinearColor(1.f, 0.6f, 0.85f));
 		}
 	}
 	Citizen->Respond(this, GetRelationship(Name));
@@ -422,8 +422,8 @@ void ALifePlayerCharacter::RestoreState(float InFitness, float InCharisma, const
 void ALifePlayerCharacter::HandleNeedCritical(ELifeNeed Need)
 {
 	static const TCHAR* Messages[] = {
-		TEXT("You're getting really hungry."), TEXT("You're exhausted. Find a bed."), TEXT("You need a shower."),
-		TEXT("You're bored. Do something fun."), TEXT("You feel lonely. Talk to someone.") };
+		TEXT("배가 많이 고픕니다."), TEXT("너무 피곤합니다. 침대를 찾으세요."), TEXT("샤워가 필요합니다."),
+		TEXT("심심합니다. 재미있는 일을 해 보세요."), TEXT("외롭습니다. 누군가와 대화해 보세요.") };
 	LifeNotify(this, Messages[static_cast<int32>(Need)], FLinearColor(1.f, 0.7f, 0.3f));
 }
 
@@ -431,13 +431,13 @@ void ALifePlayerCharacter::HandleNeedDepleted(ELifeNeed Need)
 {
 	if (Need == ELifeNeed::Hunger)
 	{
-		LifeNotify(this, TEXT("You're starving! Your energy drains twice as fast."), FLinearColor(1.f, 0.3f, 0.25f));
+		LifeNotify(this, TEXT("굶주리고 있습니다! 에너지가 두 배로 빨리 줄어듭니다."), FLinearColor(1.f, 0.3f, 0.25f));
 	}
 	else if (Need == ELifeNeed::Energy && !IsBusy() && !IsDriving())
 	{
 		const int32 Fee = ULifeSettings::Get()->CollapseFee;
 		Wallet->AddBank(-Fee);
-		LifeNotify(this, FString::Printf(TEXT("You collapsed from exhaustion! Medical bill: $%d"), Fee), FLinearColor(1.f, 0.3f, 0.25f));
+		LifeNotify(this, FString::Printf(TEXT("탈진해서 쓰러졌습니다! 병원비: $%d"), Fee), FLinearColor(1.f, 0.3f, 0.25f));
 		BeginActivity(ELifeActivity::Sleep, nullptr);
 	}
 }

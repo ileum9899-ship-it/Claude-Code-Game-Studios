@@ -7,7 +7,6 @@
 #include "LifeInteractable.h"
 #include "CitizenNPC.generated.h"
 
-class UTextRenderComponent;
 class ALifeTownBuilder;
 
 /**
@@ -36,12 +35,17 @@ public:
 
 	const FString& GetCitizenName() const { return CitizenName; }
 
+	/** Current speech-bubble line, empty when silent (drawn by the HUD; Hangul-safe). */
+	FString GetSpeechLine() const { return SpeechTimer > 0.f ? SpeechLine : FString(); }
+
+	/** Hidden for the night. */
+	bool IsAtHome() const { return bAtHome; }
+
 private:
 	void PickNextNode();
 	void UpdateSchedule();
 	void Say(const FString& Line, float Seconds);
 
-	UPROPERTY(VisibleAnywhere, Category = "Life") TObjectPtr<UTextRenderComponent> SpeechText;
 	UPROPERTY(VisibleInstanceOnly, Category = "Life") FString CitizenName;
 	UPROPERTY() TWeakObjectPtr<ALifeTownBuilder> Town;
 
@@ -50,6 +54,7 @@ private:
 	int32 PreviousNode = INDEX_NONE;
 	float PauseTimer = 0.f;
 	float SpeechTimer = 0.f;
+	FString SpeechLine;
 	float StuckTimer = 0.f;
 	FVector LastProgressLocation = FVector::ZeroVector;
 	TWeakObjectPtr<AActor> TalkPartner;

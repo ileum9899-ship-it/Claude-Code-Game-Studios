@@ -1,4 +1,4 @@
-// Life RP - player controller, input and save/load.
+﻿// Life RP - player controller, input and save/load.
 
 #include "LifePlayerController.h"
 #include "LifeCareerComponent.h"
@@ -134,13 +134,13 @@ void ALifePlayerController::BeginPlay()
 	{
 		if (LoadFromSlot())
 		{
-			LifeNotify(this, TEXT("Welcome back!"), FLinearColor(0.6f, 1.f, 0.7f));
+			LifeNotify(this, TEXT("다시 오신 것을 환영합니다!"), FLinearColor(0.6f, 1.f, 0.7f));
 		}
 	}
 	else
 	{
-		LifeNotify(this, TEXT("Welcome to town! Get a job, keep your needs up, make friends."), FLinearColor(0.6f, 1.f, 0.7f));
-		LifeNotify(this, TEXT("Hold TAB for your status and controls."), FLinearColor(0.85f, 0.9f, 1.f));
+		LifeNotify(this, TEXT("마을에 오신 것을 환영합니다! 일자리를 구하고, 욕구를 챙기고, 친구를 사귀세요."), FLinearColor(0.6f, 1.f, 0.7f));
+		LifeNotify(this, TEXT("TAB 키로 상태와 조작법을 볼 수 있습니다."), FLinearColor(0.85f, 0.9f, 1.f));
 	}
 }
 
@@ -211,7 +211,7 @@ void ALifePlayerController::SaveToSlot()
 
 	if (UGameplayStatics::SaveGameToSlot(Save, ULifeSettings::Get()->SaveSlotName, 0))
 	{
-		LifeNotify(this, TEXT("Game saved."), FLinearColor(0.6f, 1.f, 0.7f));
+		LifeNotify(this, TEXT("게임을 저장했습니다."), FLinearColor(0.6f, 1.f, 0.7f));
 	}
 }
 
@@ -222,7 +222,7 @@ bool ALifePlayerController::LoadFromSlot()
 	const FString& Slot = ULifeSettings::Get()->SaveSlotName;
 	if (!C || !GS || !UGameplayStatics::DoesSaveGameExist(Slot, 0))
 	{
-		LifeNotify(this, TEXT("No save found."), FLinearColor(1.f, 0.6f, 0.5f));
+		LifeNotify(this, TEXT("저장 파일이 없습니다."), FLinearColor(1.f, 0.6f, 0.5f));
 		return false;
 	}
 	const ULifeSaveGame* Save = Cast<ULifeSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
@@ -232,7 +232,7 @@ bool ALifePlayerController::LoadFromSlot()
 	}
 	if (C->IsBusy())
 	{
-		C->EndActivity(TEXT("Loading..."));
+		C->EndActivity(TEXT("불러오는 중..."));
 	}
 	if (C->IsDriving())
 	{
@@ -244,7 +244,7 @@ bool ALifePlayerController::LoadFromSlot()
 	C->GetWallet()->SetBalances(Save->Cash, Save->Bank);
 	C->GetCareer()->SetCareer(Save->JobId, Save->JobHours);
 	C->RestoreState(Save->Fitness, Save->Charisma, Save->Relationships);
-	LifeNotify(this, TEXT("Game loaded."), FLinearColor(0.6f, 1.f, 0.7f));
+	LifeNotify(this, TEXT("게임을 불러왔습니다."), FLinearColor(0.6f, 1.f, 0.7f));
 	return true;
 }
 

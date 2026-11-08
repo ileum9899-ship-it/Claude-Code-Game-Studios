@@ -1,4 +1,4 @@
-// Life RP - procedural town.
+﻿// Life RP - procedural town.
 
 #include "LifeTownBuilder.h"
 #include "CitizenNPC.h"
@@ -598,7 +598,7 @@ void ALifeTownBuilder::AddBench(const FVector& Base, float Yaw)
 // ------------------------------------------------------------------ Enterable buildings
 
 void ALifeTownBuilder::BuildRoom(const FTransform& Frame, float Depth, float Width, float Height, float DoorWidth,
-	const FLinearColor& Walls, const FLinearColor& Floor, const FLinearColor& Accent, const FString& Sign)
+	const FLinearColor& Walls, const FLinearColor& Floor, const FLinearColor& Accent, const FString& Sign, const FString& LocalName)
 {
 	const float T = 30.f;          // wall thickness
 	const float DoorH = FMath::Min(Height - 80.f, DoorWidth > 400.f ? 420.f : 250.f);
@@ -644,7 +644,9 @@ void ALifeTownBuilder::BuildRoom(const FTransform& Frame, float Depth, float Wid
 	LBox(Frame, FVector(HalfD + 70.f, 0, DoorH + 25.f), FVector(140.f, DoorWidth + 160.f, 10.f), Accent, 0.f, false);
 	const float SignZ = DoorH + (Height - DoorH) * 0.5f + 20.f;
 	LBox(Frame, FVector(HalfD + 8.f, 0, SignZ), FVector(10.f, FMath::Max(400.f, Sign.Len() * 70.f), 85.f), Accent * 0.5f, 0.f, false);
+	// The 3D sign keeps the Latin brand name: TextRenderComponent fonts are offline atlases without Hangul.
 	AddLabel(this, Root, Sign, Frame.TransformPosition(FVector(HalfD + 15.f, 0, SignZ)), 62.f, FColor(255, 240, 210), Frame.Rotator());
+	SignLabels.Add({ Frame.TransformPosition(FVector(HalfD + 40.f, 0, DoorH + 60.f)), LocalName });
 
 	// Interior light.
 	UPointLightComponent* Light = NewObject<UPointLightComponent>(this);
@@ -678,7 +680,7 @@ ALifeStation* ALifeTownBuilder::SpawnStation(const FTransform& Frame, const FVec
 void ALifeTownBuilder::BuildHome(const FTransform& F)
 {
 	const FRoomSpec Spec = RoomSpecFor(ESpecial::Home);
-	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.82f, 0.78f, 0.70f), FLinearColor(0.38f, 0.24f, 0.13f), FLinearColor(0.15f, 0.35f, 0.25f), TEXT("HOME"));
+	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.82f, 0.78f, 0.70f), FLinearColor(0.38f, 0.24f, 0.13f), FLinearColor(0.15f, 0.35f, 0.25f), TEXT("HOME"), TEXT("우리 집"));
 
 	SpawnStation(F, FVector(-300.f, -380.f, 6.f), 0.f, ELifeStationType::Bed, NAME_None, FLinearColor(0.20f, 0.30f, 0.60f));
 	SpawnStation(F, FVector(-470.f, 570.f, 6.f), 90.f, ELifeStationType::Shower, NAME_None, FLinearColor::White);
@@ -714,7 +716,7 @@ void ALifeTownBuilder::BuildDiner(const FTransform& F)
 	const FRoomSpec Spec = RoomSpecFor(ESpecial::Diner);
 	const FLifeJobDef* Job = ULifeSettings::Get()->FindJob(TEXT("Barista"));
 	const FLinearColor Accent = Job ? Job->AccentColor : FLinearColor::Red;
-	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.85f, 0.80f, 0.70f), FLinearColor(0.75f, 0.75f, 0.72f), FLinearColor(0.65f, 0.08f, 0.06f), TEXT("SUNNY DINER"));
+	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.85f, 0.80f, 0.70f), FLinearColor(0.75f, 0.75f, 0.72f), FLinearColor(0.65f, 0.08f, 0.06f), TEXT("SUNNY DINER"), TEXT("써니 다이너"));
 
 	LBox(F, FVector(-330.f, 0.f, 50.f), FVector(80.f, 1000.f, 100.f), FLinearColor(0.55f, 0.08f, 0.06f));
 	LBox(F, FVector(-330.f, 0.f, 103.f), FVector(90.f, 1010.f, 6.f), FLinearColor(0.85f, 0.85f, 0.85f));
@@ -740,7 +742,7 @@ void ALifeTownBuilder::BuildOffice(const FTransform& F)
 	const FRoomSpec Spec = RoomSpecFor(ESpecial::Office);
 	const FLifeJobDef* Job = ULifeSettings::Get()->FindJob(TEXT("OfficeClerk"));
 	const FLinearColor Accent = Job ? Job->AccentColor : FLinearColor::Blue;
-	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.70f, 0.72f, 0.75f), FLinearColor(0.25f, 0.27f, 0.30f), FLinearColor(0.08f, 0.22f, 0.50f), TEXT("NOVA CORP"));
+	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.70f, 0.72f, 0.75f), FLinearColor(0.25f, 0.27f, 0.30f), FLinearColor(0.08f, 0.22f, 0.50f), TEXT("NOVA CORP"), TEXT("노바 코퍼레이션"));
 
 	SpawnStation(F, FVector(-300.f, 0.f, 6.f), 0.f, ELifeStationType::Workstation, TEXT("OfficeClerk"), Accent);
 	for (const FVector& D : { FVector(-300.f, -420.f, 0.f), FVector(-300.f, 420.f, 0.f), FVector(80.f, -420.f, 0.f), FVector(80.f, 420.f, 0.f) })
@@ -760,7 +762,7 @@ void ALifeTownBuilder::BuildOffice(const FTransform& F)
 void ALifeTownBuilder::BuildBank(const FTransform& F)
 {
 	const FRoomSpec Spec = RoomSpecFor(ESpecial::Bank);
-	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.78f, 0.75f, 0.66f), FLinearColor(0.60f, 0.58f, 0.52f), FLinearColor(0.10f, 0.20f, 0.40f), TEXT("CITY BANK"));
+	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.78f, 0.75f, 0.66f), FLinearColor(0.60f, 0.58f, 0.52f), FLinearColor(0.10f, 0.20f, 0.40f), TEXT("CITY BANK"), TEXT("시티 은행"));
 
 	SpawnStation(F, FVector(-430.f, -220.f, 6.f), 0.f, ELifeStationType::ATMDeposit, NAME_None, FLinearColor::White);
 	SpawnStation(F, FVector(-430.f, 220.f, 6.f), 0.f, ELifeStationType::ATMWithdraw, NAME_None, FLinearColor::White);
@@ -777,7 +779,7 @@ void ALifeTownBuilder::BuildGarage(const FTransform& F)
 	const FRoomSpec Spec = RoomSpecFor(ESpecial::Garage);
 	const FLifeJobDef* Job = ULifeSettings::Get()->FindJob(TEXT("Mechanic"));
 	const FLinearColor Accent = Job ? Job->AccentColor : FLinearColor(1.f, 0.4f, 0.f);
-	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.45f, 0.45f, 0.47f), FLinearColor(0.30f, 0.30f, 0.30f), Accent, TEXT("AUTO GARAGE"));
+	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.45f, 0.45f, 0.47f), FLinearColor(0.30f, 0.30f, 0.30f), Accent, TEXT("AUTO GARAGE"), TEXT("오토 정비소"));
 
 	SpawnStation(F, FVector(-480.f, -560.f, 6.f), 0.f, ELifeStationType::Workstation, TEXT("Mechanic"), Accent);
 	// Two-post lift and tyre stacks.
@@ -796,7 +798,7 @@ void ALifeTownBuilder::BuildGarage(const FTransform& F)
 void ALifeTownBuilder::BuildGym(const FTransform& F)
 {
 	const FRoomSpec Spec = RoomSpecFor(ESpecial::Gym);
-	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.20f, 0.22f, 0.25f), FLinearColor(0.12f, 0.12f, 0.13f), FLinearColor(0.85f, 0.75f, 0.05f), TEXT("IRON GYM"));
+	BuildRoom(F, Spec.Depth, Spec.Width, Spec.Height, Spec.Door, FLinearColor(0.20f, 0.22f, 0.25f), FLinearColor(0.12f, 0.12f, 0.13f), FLinearColor(0.85f, 0.75f, 0.05f), TEXT("IRON GYM"), TEXT("아이언 헬스장"));
 
 	for (float Y : { -400.f, 0.f, 400.f })
 	{
@@ -872,7 +874,7 @@ void ALifeTownBuilder::SpawnCitizens()
 		{
 			continue;
 		}
-		const FString Name = Settings->CitizenNames.IsValidIndex(i) ? Settings->CitizenNames[i] : FString::Printf(TEXT("Citizen %d"), i + 1);
+		const FString Name = Settings->CitizenNames.IsValidIndex(i) ? Settings->CitizenNames[i] : FString::Printf(TEXT("주민 %d"), i + 1);
 		Citizen->InitCitizen(Name, FLifeAppearance::Random(Stream), this, Node, Settings->TownSeed + i * 131);
 	}
 }

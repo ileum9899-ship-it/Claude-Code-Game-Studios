@@ -25,6 +25,20 @@ Design record: [`design/game-brief.md`](design/game-brief.md).
 - **Save/load** (F5/F9), autosave when you wake up, autoload on start.
 - **Data-driven:** every number is in **Project Settings > Game > Life RP**.
 
+## Language: Korean (한국어)
+
+All in-game text is Korean: the HUD, notifications, interaction prompts, citizen dialogue, job titles, shop items,
+citizen names and building names. The strings live in the `.cpp` files (saved as UTF-8 with BOM so MSVC reads them
+correctly under any system code page); the data tables are defaults in `LifeSettings.cpp` and editable in Project Settings.
+
+- **3D signs:** `TextRenderComponent` uses offline font atlases without Hangul. The building signs therefore keep their
+  Latin brand names in 3D (SUNNY DINER and so on). The Korean names, station labels and speech bubbles are drawn by the HUD at
+  their world positions, hidden behind walls.
+- **Font:** the HUD uses the engine's Roboto font and relies on its built-in CJK fallback. If Hangul shows as boxes,
+  import a Korean font (e.g. Noto Sans KR) as a runtime `Font` asset and set **Project Settings > Game > Life RP > UI > HUD Font**.
+- **Saves:** relationships are keyed by citizen name, so saves made with the earlier English names won't carry
+  relationships over.
+
 ## Requirements
 
 - Unreal Engine **5.8** (the `.uproject` is associated with 5.8). The code also targets 5.6/5.7-era APIs but is only

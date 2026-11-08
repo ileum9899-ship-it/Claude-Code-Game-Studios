@@ -1,4 +1,4 @@
-// Life RP - usable furniture and service points.
+﻿// Life RP - usable furniture and service points.
 
 #include "LifeStation.h"
 #include "LifeCareerComponent.h"
@@ -81,7 +81,8 @@ void ALifeStation::BuildVisual()
 		AddPart(this, Root, Sphere(), FVector(0, 0, 122), FVector(36, 36, 36), Accent, FRotator::ZeroRotator, false);
 		if (const FLifeShopItem* Item = ULifeSettings::Get()->FindShopItem(ItemId))
 		{
-			AddLabel(this, Root, FString::Printf(TEXT("%s  $%d"), *Item->DisplayName, Item->Price), FVector(48, 0, 165), 18.f, FColor::White);
+			WorldLabel = FString::Printf(TEXT("%s  $%d"), *Item->DisplayName, Item->Price);
+			LabelOffset = FVector(0, 0, 175);
 		}
 		break;
 
@@ -93,7 +94,8 @@ void ALifeStation::BuildVisual()
 		AddPart(this, Root, Cube(), FVector(-17, 0, 110), FVector(1, 64, 39), Accent, FRotator::ZeroRotator, false);
 		if (const FLifeJobDef* Job = ULifeSettings::Get()->FindJob(ItemId))
 		{
-			AddLabel(this, Root, Job->DisplayName, FVector(0, 0, 175), 22.f, FColor::White, FRotator(0, 0, 0));
+			WorldLabel = Job->DisplayName;
+			LabelOffset = FVector(0, 0, 175);
 		}
 		break;
 
@@ -102,7 +104,8 @@ void ALifeStation::BuildVisual()
 		AddPart(this, Root, Cube(), FVector(0, 0, 85), FVector(55, 75, 170), RGB(40, 70, 120));
 		AddPart(this, Root, Cube(), FVector(28, 0, 125), FVector(2, 50, 35), RGB(90, 200, 255), FRotator::ZeroRotator, false);
 		AddPart(this, Root, Cube(), FVector(32, 0, 95), FVector(12, 50, 4), Metal, FRotator::ZeroRotator, false);
-		AddLabel(this, Root, Type == ELifeStationType::ATMDeposit ? TEXT("DEPOSIT") : TEXT("WITHDRAW"), FVector(29, 0, 155), 12.f, FColor::White);
+		WorldLabel = Type == ELifeStationType::ATMDeposit ? TEXT("ATM 입금") : TEXT("ATM 출금");
+		LabelOffset = FVector(0, 0, 200);
 		break;
 
 	case ELifeStationType::Workout:
@@ -121,19 +124,19 @@ FString ALifeStation::GetInteractionPrompt(const ALifePlayerCharacter* Player) c
 	const ULifeSettings* S = ULifeSettings::Get();
 	switch (Type)
 	{
-	case ELifeStationType::Bed:        return TEXT("Sleep");
-	case ELifeStationType::Shower:     return TEXT("Take a shower");
-	case ELifeStationType::Television: return TEXT("Watch TV");
-	case ELifeStationType::Fridge:     return FString::Printf(TEXT("Cook a meal  $%d"), S->FridgeMealCost);
-	case ELifeStationType::Workout:    return TEXT("Work out");
-	case ELifeStationType::ATMDeposit: return FString::Printf(TEXT("Deposit cash  ($%d)"), Player ? Player->GetWallet()->GetCash() : 0);
-	case ELifeStationType::ATMWithdraw:return FString::Printf(TEXT("Withdraw $%d"), S->ATMWithdrawAmount);
+	case ELifeStationType::Bed:        return TEXT("잠자기");
+	case ELifeStationType::Shower:     return TEXT("샤워하기");
+	case ELifeStationType::Television: return TEXT("TV 보기");
+	case ELifeStationType::Fridge:     return FString::Printf(TEXT("요리해서 먹기  $%d"), S->FridgeMealCost);
+	case ELifeStationType::Workout:    return TEXT("운동하기");
+	case ELifeStationType::ATMDeposit: return FString::Printf(TEXT("현금 입금하기  ($%d)"), Player ? Player->GetWallet()->GetCash() : 0);
+	case ELifeStationType::ATMWithdraw:return FString::Printf(TEXT("$%d 출금하기"), S->ATMWithdrawAmount);
 	case ELifeStationType::ShopItem:
 		if (const FLifeShopItem* Item = S->FindShopItem(ItemId))
 		{
-			return FString::Printf(TEXT("Buy %s  $%d"), *Item->DisplayName, Item->Price);
+			return FString::Printf(TEXT("%s 구매  $%d"), *Item->DisplayName, Item->Price);
 		}
-		return TEXT("Sold out");
+		return TEXT("품절");
 	case ELifeStationType::Workstation:
 		return Player ? Player->GetCareer()->GetWorkstationPrompt(ItemId) : FString();
 	}
@@ -191,10 +194,10 @@ void ALifeStation::Interact(ALifePlayerCharacter* Player)
 		break;
 
 	case ELifeStationType::Fridge:
-		if (Wallet->TrySpend(S->FridgeMealCost, TEXT("groceries")))
+		if (Wallet->TrySpend(S->FridgeMealCost, TEXT("식재료")))
 		{
 			Needs->ApplyDelta(S->FridgeMealRestore);
-			LifeNotify(this, TEXT("You cooked a home meal. Yum."), FLinearColor(0.9f, 0.95f, 1.f));
+			LifeNotify(this, TEXT("집밥을 해 먹었습니다. 맛있다!"), FLinearColor(0.9f, 0.95f, 1.f));
 		}
 		break;
 
@@ -204,7 +207,7 @@ void ALifeStation::Interact(ALifePlayerCharacter* Player)
 			if (Wallet->TrySpend(Item->Price, Item->DisplayName))
 			{
 				Needs->ApplyDelta(Item->Restore);
-				LifeNotify(this, FString::Printf(TEXT("Bought %s (-$%d)"), *Item->DisplayName, Item->Price), FLinearColor(0.9f, 0.95f, 1.f));
+				LifeNotify(this, FString::Printf(TEXT("%s 구매 (-$%d)"), *Item->DisplayName, Item->Price), FLinearColor(0.9f, 0.95f, 1.f));
 			}
 		}
 		break;
@@ -216,13 +219,13 @@ void ALifeStation::Interact(ALifePlayerCharacter* Player)
 	case ELifeStationType::ATMDeposit:
 	{
 		const int32 Moved = Wallet->DepositAll();
-		LifeNotify(this, FString::Printf(TEXT("Deposited $%d. Balance $%d."), Moved, Wallet->GetBank()), FLinearColor(0.6f, 0.85f, 1.f));
+		LifeNotify(this, FString::Printf(TEXT("$%d 입금했습니다. 잔액 $%d."), Moved, Wallet->GetBank()), FLinearColor(0.6f, 0.85f, 1.f));
 		break;
 	}
 	case ELifeStationType::ATMWithdraw:
 	{
 		const int32 Moved = Wallet->Withdraw(S->ATMWithdrawAmount);
-		LifeNotify(this, FString::Printf(TEXT("Withdrew $%d. Balance $%d."), Moved, Wallet->GetBank()), FLinearColor(0.6f, 0.85f, 1.f));
+		LifeNotify(this, FString::Printf(TEXT("$%d 출금했습니다. 잔액 $%d."), Moved, Wallet->GetBank()), FLinearColor(0.6f, 0.85f, 1.f));
 		break;
 	}
 	}
