@@ -45,6 +45,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Life|Vehicle") float GetSpeedKmh() const { return FMath::Abs(Speed) * 0.036f; }
 	UFUNCTION(BlueprintPure, Category = "Life|Vehicle") bool IsTraffic() const { return bTraffic; }
 
+	// Touch buttons (HUD)
+	void SetTouchThrottle(float Value) { Throttle = FMath::Clamp(Value, -1.f, 1.f); }
+	void SetTouchHandbrake(bool bOn) { bHandbrake = bOn; }
+	/** Same as pressing E while driving. */
+	void RequestExit() { ExitPressed(); }
+
 	// ILifeInteractable
 	virtual FString GetInteractionPrompt(const ALifePlayerCharacter* Player) const override;
 	virtual bool CanInteract(const ALifePlayerCharacter* Player) const override;

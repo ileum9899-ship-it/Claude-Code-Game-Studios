@@ -226,7 +226,8 @@ void ALifeTownBuilder::BuildGroundAndHorizon()
 			Leaves[i % 3] * 0.8f, true);
 	}
 	// Scattered trees between town and hills.
-	for (int32 i = 0; i < 160; ++i)
+	const int32 HorizonTrees = IsMobileRenderer(this) ? ULifeSettings::Get()->MobileHorizonTrees : 160;
+	for (int32 i = 0; i < HorizonTrees; ++i)
 	{
 		const float Angle = Rand.FRandRange(0.f, 2.f * UE_PI);
 		const float Dist = Half() + Rand.FRandRange(900.f, Extent * 0.9f);
@@ -865,7 +866,8 @@ void ALifeTownBuilder::SpawnCitizens()
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	FRandomStream Stream(Settings->TownSeed + 17);
-	for (int32 i = 0; i < Settings->CitizenCount; ++i)
+	const int32 Count = IsMobileRenderer(this) ? Settings->MobileCitizenCount : Settings->CitizenCount;
+	for (int32 i = 0; i < Count; ++i)
 	{
 		const int32 Node = Stream.RandRange(0, WalkNodes.Num() - 1);
 		const FVector Jitter(Stream.FRandRange(-80.f, 80.f), Stream.FRandRange(-80.f, 80.f), 0.f);
@@ -894,7 +896,8 @@ void ALifeTownBuilder::SpawnTraffic()
 	// Traffic: each car loops the lanes around one block (right-hand traffic).
 	FRandomStream Stream(Settings->TownSeed + 99);
 	const float LaneOffset = R * 0.25f;
-	for (int32 i = 0; i < Settings->TrafficCarCount; ++i)
+	const int32 Cars = IsMobileRenderer(this) ? Settings->MobileTrafficCarCount : Settings->TrafficCarCount;
+	for (int32 i = 0; i < Cars; ++i)
 	{
 		const int32 BX = Stream.RandRange(0, N - 1);
 		const int32 BY = Stream.RandRange(0, N - 1);

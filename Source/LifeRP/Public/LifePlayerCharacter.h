@@ -66,6 +66,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Life") float GetFitness() const { return Fitness; }
 	UFUNCTION(BlueprintPure, Category = "Life") float GetCharisma() const { return Charisma; }
 
+	// ---------------------------------------------------------- Touch buttons (HUD)
+	/** Same as pressing E: interact, or stop the current activity. */
+	void InteractPressed();
+	/** Same as pressing Space: jump, or stop the current activity. */
+	void JumpPressed();
+	void SetSprintHeld(bool bHeld) { bSprinting = bHeld; }
+	bool IsSprintHeld() const { return bSprinting; }
+
 	/** Restores progress from a save. */
 	void RestoreState(float InFitness, float InCharisma, const TMap<FString, int32>& InRelationships);
 
@@ -78,8 +86,6 @@ private:
 	void Zoom(const FInputActionValue& Value);
 	void SprintStart();
 	void SprintStop();
-	void JumpPressed();
-	void InteractPressed();
 
 	void TickActivity(float DeltaSeconds);
 	void UpdateMovementSpeed();

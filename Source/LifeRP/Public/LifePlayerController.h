@@ -59,6 +59,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Life") ALifePlayerCharacter* GetLifeCharacter() const { return LifeCharacter.Get(); }
 
 	UFUNCTION(BlueprintPure, Category = "Life") bool IsStatusOpen() const { return bStatusOpen; }
+	UFUNCTION(BlueprintCallable, Category = "Life") void ToggleStatus() { bStatusOpen = !bStatusOpen; }
 
 	UFUNCTION(BlueprintCallable, Category = "Life") void SaveToSlot();
 	UFUNCTION(BlueprintCallable, Category = "Life") bool LoadFromSlot();
@@ -67,10 +68,12 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
 	void ApplyContexts();
-	void ToggleStatus() { bStatusOpen = !bStatusOpen; }
+	/** Android: the OS may kill a backgrounded app, so save on the way out. */
+	void HandleAppBackground();
 	void SavePressed() { SaveToSlot(); }
 	void LoadPressed() { LoadFromSlot(); }
 

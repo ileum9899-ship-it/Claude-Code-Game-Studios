@@ -26,6 +26,9 @@ class LIFERP_API ALifeHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
+	virtual void NotifyHitBoxClick_Implementation(FName BoxName) override;
+	virtual void NotifyHitBoxRelease_Implementation(FName BoxName) override;
+
 	/** Adds a toast; newest on top, at most MaxToasts visible. */
 	void PushNotification(const FString& Message, const FLinearColor& Color);
 
@@ -48,6 +51,18 @@ private:
 	void DrawStatusPanel(const ALifePlayerCharacter* C);
 	void DrawSpeedometer(const ALifePlayerCharacter* C);
 	void DrawWorldLabels(const ALifePlayerCharacter* C);
+
+	// ---- Touch controls (Android). Movement/look use the engine's virtual joysticks.
+	void DrawTouchButtons(const ALifePlayerCharacter* C);
+	void TouchButton(FName Name, const FString& Label, float CX, float CY, float Size, bool bActive = false);
+	void PressButton(FName Name);
+	void ReleaseButton(FName Name);
+	/** Releases held buttons whose finger slid off or lifted outside the box. */
+	void ValidateHeldButtons();
+
+	bool bTouchUI = false;
+	TSet<FName> HeldButtons;
+	TMap<FName, FBox2D> ButtonRects;
 	void DrawWorldLabel(const ALifePlayerCharacter* C, const FVector& World, const FString& Text, const FLinearColor& Color,
 		float Size, float MaxDistance, const AActor* Owner);
 

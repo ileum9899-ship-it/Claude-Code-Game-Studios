@@ -7,6 +7,10 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/InputSettings.h"
+#include "Engine/World.h"
+#include "HAL/PlatformMisc.h"
+#include "LifeSettings.h"
 
 namespace LifeVisuals
 {
@@ -94,6 +98,19 @@ namespace LifeVisuals
 		Label->RegisterComponent();
 		Owner->AddInstanceComponent(Label);
 		return Label;
+	}
+
+	bool IsMobileRenderer(const UObject* WorldContext)
+	{
+		const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+		return World && World->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1;
+	}
+
+	bool UsesTouchUI()
+	{
+		return FPlatformMisc::GetUseVirtualJoysticks()
+			|| GetDefault<UInputSettings>()->bAlwaysShowTouchInterface
+			|| ULifeSettings::Get()->bForceTouchUI;
 	}
 
 	FLinearColor RGB(uint8 R, uint8 G, uint8 B)

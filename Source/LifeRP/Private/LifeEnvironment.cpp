@@ -12,6 +12,7 @@
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInterface.h"
+#include "LifeVisuals.h"
 
 ALifeEnvironment::ALifeEnvironment()
 {
@@ -97,6 +98,18 @@ void ALifeEnvironment::BeginPlay()
 		TEXT("/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst")))
 	{
 		Clouds->SetMaterial(CloudMat);
+	}
+	if (LifeVisuals::IsMobileRenderer(this))
+	{
+		// Mobile renderer: no volumetric clouds / volumetric fog, lighter post-process.
+		Clouds->SetVisibility(false);
+		Fog->SetVolumetricFog(false);
+		FPostProcessSettings& PP = PostProcess->Settings;
+		PP.bOverride_FilmGrainIntensity = true;     PP.FilmGrainIntensity = 0.f;
+		PP.bOverride_SceneFringeIntensity = true;   PP.SceneFringeIntensity = 0.f;
+		PP.bOverride_BloomIntensity = true;         PP.BloomIntensity = 0.4f;
+		Sun->SetDynamicShadowDistanceMovableLight(8000.f);
+		Moon->SetCastShadows(false);
 	}
 	ApplyTimeOfDay(ULifeSettings::Get()->StartHour);
 }

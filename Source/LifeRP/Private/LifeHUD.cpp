@@ -22,6 +22,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Camera/PlayerCameraManager.h"
+#include "LifeVisuals.h"
+#include "HAL/PlatformMisc.h"
 
 namespace
 {
@@ -102,7 +104,9 @@ void ALifeHUD::DrawHUD()
 	{
 		return;
 	}
-	UIScale = FMath::Max(0.6f, Canvas->ClipY / 1080.f);
+	bTouchUI = LifeVisuals::UsesTouchUI();
+	// Phones are small: draw the touch layout larger.
+	UIScale = FMath::Max(0.6f, Canvas->ClipY / 1080.f) * (bTouchUI ? 1.15f : 1.f);
 
 	const float Now = GetWorld()->GetRealTimeSeconds();
 	const float Delta = LastDrawTime < 0.f ? 0.f : FMath::Min(Now - LastDrawTime, 0.25f);
@@ -135,6 +139,11 @@ void ALifeHUD::DrawHUD()
 	if (PC->IsStatusOpen())
 	{
 		DrawStatusPanel(C);
+	}
+	if (bTouchUI)
+	{
+		ValidateHeldButtons();
+		DrawTouchButtons(C);
 	}
 }
 
@@ -174,7 +183,7 @@ void ALifeHUD::DrawNeeds(const ALifePlayerCharacter* C)
 	const float X = 24.f * UIScale;
 	const float Rows = 6.f;
 	const float RowH = 38.f * UIScale;
-	const float Y = Canvas->ClipY - (Rows * RowH + 40.f * UIScale);
+	const float Y = bTouchUI ? 150.f * UIScale : Canvas->ClipY - (Rows * RowH + 40.f * UIScale);
 	DrawPanel(X, Y, W + 32.f * UIScale, Rows * RowH + 20.f * UIScale);
 
 	const float Mood = Needs->GetMood();
@@ -200,13 +209,13 @@ void ALifeHUD::DrawPrompt(const ALifePlayerCharacter* C)
 	{
 		return;
 	}
-	const FString Prompt = FString::Printf(TEXT("[E]  %s"), *Target->GetInteractionPrompt(C));
+	const FString Prompt = FString::Printf(bTouchUI ? TEXT("[행동]  %s") : TEXT("[E]  %s"), *Target->GetInteractionPrompt(C));
 	const bool bUsable = Target->CanInteract(C);
 	float TextW = 0.f, TextH = 0.f;
 	Canvas->TextSize(Font(), Prompt, TextW, TextH, 1.1f * UIScale, 1.1f * UIScale);
 	const float W = FMath::Max(260.f * UIScale, TextW + 48.f * UIScale);
 	const float X = Canvas->ClipX * 0.5f - W * 0.5f;
-	const float Y = Canvas->ClipY * 0.72f;
+	const float Y = Canvas->ClipY * (bTouchUI ? 0.62f : 0.72f);
 	DrawPanel(X, Y, W, 44.f * UIScale, 0.65f);
 	DrawLabel(Prompt, Canvas->ClipX * 0.5f, Y + 10.f * UIScale, bUsable ? TextMain : FLinearColor(1.f, 0.5f, 0.45f), 1.1f, true);
 }
@@ -222,8 +231,13 @@ void ALifeHUD::DrawToasts(float DeltaSeconds)
 	const float W = 520.f * UIScale;
 	const float X = Canvas->ClipX - W - 24.f * UIScale;
 	float Y = 24.f * UIScale;
+	int32 Shown = 0;
 	for (const FToast& Toast : Toasts)
 	{
+		if (bTouchUI && ++Shown > 3)
+		{
+			break; // keep the right side free for the touch buttons
+		}
 		const float Alpha = FMath::Clamp((ToastLifetime - Toast.Age) / 1.f, 0.f, 1.f) * FMath::Clamp(Toast.Age / 0.15f, 0.f, 1.f);
 		DrawPanel(X, Y, W, 36.f * UIScale, 0.55f * Alpha);
 		FLinearColor Color = Toast.Color;
@@ -240,7 +254,7 @@ void ALifeHUD::DrawActivity(const ALifePlayerCharacter* C)
 		return;
 	}
 	const int32 Minutes = FMath::CeilToInt(C->GetActivityRemainingMinutes());
-	const FString Text = FString::Printf(TEXT("%s   남은 시간 %d시간 %02d분      [E] 중단"), *C->GetActivityLabel(), Minutes / 60, Minutes % 60);
+	const FString Text = FString::Printf(bTouchUI ? TEXT("%s   남은 시간 %d시간 %02d분      [행동] 중단") : TEXT("%s   남은 시간 %d시간 %02d분      [E] 중단"), *C->GetActivityLabel(), Minutes / 60, Minutes % 60);
 	DrawLabel(Text, Canvas->ClipX * 0.5f, Canvas->ClipY * 0.42f, TextMain, 1.5f, true);
 }
 
@@ -251,11 +265,11 @@ void ALifeHUD::DrawSpeedometer(const ALifePlayerCharacter* C)
 	{
 		return;
 	}
-	const float X = Canvas->ClipX - 250.f * UIScale;
-	const float Y = Canvas->ClipY - 130.f * UIScale;
+	const float X = bTouchUI ? Canvas->ClipX * 0.5f - 113.f * UIScale : Canvas->ClipX - 250.f * UIScale;
+	const float Y = bTouchUI ? 24.f * UIScale : Canvas->ClipY - 130.f * UIScale;
 	DrawPanel(X, Y, 226.f * UIScale, 106.f * UIScale);
 	DrawLabel(FString::Printf(TEXT("%3.0f"), Car->GetSpeedKmh()), X + 113.f * UIScale, Y + 8.f * UIScale, TextMain, 3.f, true);
-	DrawLabel(TEXT("km/h      [E] 내리기"), X + 113.f * UIScale, Y + 74.f * UIScale, TextDim, 0.85f, true);
+	DrawLabel(bTouchUI ? TEXT("km/h") : TEXT("km/h      [E] 내리기"), X + 113.f * UIScale, Y + 74.f * UIScale, TextDim, 0.85f, true);
 }
 
 void ALifeHUD::DrawStatusPanel(const ALifePlayerCharacter* C)
@@ -384,5 +398,168 @@ void ALifeHUD::DrawWorldLabels(const ALifePlayerCharacter* C)
 			DrawWorldLabel(C, It->GetActorLocation() + FVector(0.f, 0.f, 120.f),
 				FString::Printf(TEXT("%s: %s"), *It->GetCitizenName(), *Line), TextMain, 0.95f, 1500.f, *It);
 		}
+	}
+}
+
+// ------------------------------------------------------------------ Touch controls
+
+namespace LifeTouch
+{
+	const FName Interact(TEXT("Touch.Interact"));
+	const FName Jump(TEXT("Touch.Jump"));
+	const FName Sprint(TEXT("Touch.Sprint"));
+	const FName Status(TEXT("Touch.Status"));
+	const FName Save(TEXT("Touch.Save"));
+	const FName Gas(TEXT("Touch.Gas"));
+	const FName Brake(TEXT("Touch.Brake"));
+	const FName Handbrake(TEXT("Touch.Handbrake"));
+	const FName Exit(TEXT("Touch.Exit"));
+}
+
+void ALifeHUD::TouchButton(FName Name, const FString& Label, float CX, float CY, float Size, bool bActive)
+{
+	const FVector2D Pos(CX - Size * 0.5f, CY - Size * 0.5f);
+	const bool bHeld = HeldButtons.Contains(Name) || bActive;
+	FCanvasTileItem Tile(Pos, FVector2D(Size, Size), bHeld ? FLinearColor(0.35f, 0.75f, 1.f, 0.55f) : FLinearColor(0.02f, 0.025f, 0.035f, 0.45f));
+	Tile.BlendMode = SE_BLEND_Translucent;
+	Canvas->DrawItem(Tile);
+	FCanvasBoxItem Border(Pos, FVector2D(Size, Size));
+	Border.SetColor(FLinearColor(1.f, 1.f, 1.f, 0.35f));
+	Border.LineThickness = 2.f;
+	Canvas->DrawItem(Border);
+	float TextW = 0.f, TextH = 0.f;
+	Canvas->TextSize(Font(), Label, TextW, TextH, UIScale, UIScale);
+	DrawLabel(Label, CX, CY - TextH * 0.5f, TextMain, 1.f, true);
+
+	AddHitBox(Pos, FVector2D(Size, Size), Name, true);
+	ButtonRects.Add(Name, FBox2D(Pos, Pos + FVector2D(Size, Size)));
+}
+
+void ALifeHUD::DrawTouchButtons(const ALifePlayerCharacter* C)
+{
+	ButtonRects.Reset();
+	const float W = Canvas->ClipX, H = Canvas->ClipY;
+	const float Big = 150.f * UIScale, Small = 96.f * UIScale, Gap = 18.f * UIScale;
+	const float RightX = W - Big * 0.5f - 40.f * UIScale;
+
+	// Top centre: status + save.
+	TouchButton(LifeTouch::Status, TEXT("상태"), W * 0.5f - Small * 0.6f - (C->IsDriving() ? 160.f * UIScale : 0.f), Small * 0.5f + 20.f * UIScale, Small);
+	TouchButton(LifeTouch::Save, TEXT("저장"), W * 0.5f + Small * 0.6f - (C->IsDriving() ? 160.f * UIScale : 0.f), Small * 0.5f + 20.f * UIScale, Small);
+
+	// Right column, above the look joystick.
+	if (C->IsDriving())
+	{
+		TouchButton(LifeTouch::Gas, TEXT("가속"), RightX, H * 0.26f, Big);
+		TouchButton(LifeTouch::Brake, TEXT("브레이크"), RightX - Big - Gap, H * 0.26f + Big * 0.35f, Big);
+		TouchButton(LifeTouch::Handbrake, TEXT("핸드브레이크"), RightX - Big - Gap, H * 0.26f + Big * 1.4f, Small);
+		TouchButton(LifeTouch::Exit, TEXT("내리기"), RightX, H * 0.26f + Big + Gap, Small);
+		return;
+	}
+	TouchButton(LifeTouch::Interact, C->IsBusy() ? TEXT("중단") : TEXT("행동"), RightX, H * 0.30f, Big);
+	TouchButton(LifeTouch::Jump, TEXT("점프"), RightX - Big - Gap, H * 0.30f + Big * 0.5f, Small);
+	TouchButton(LifeTouch::Sprint, TEXT("달리기"), RightX, H * 0.30f + Big * 0.5f + Gap + Small * 0.5f, Small, C->IsSprintHeld());
+}
+
+void ALifeHUD::NotifyHitBoxClick_Implementation(FName BoxName)
+{
+	Super::NotifyHitBoxClick_Implementation(BoxName);
+	if (!HeldButtons.Contains(BoxName))
+	{
+		HeldButtons.Add(BoxName);
+		PressButton(BoxName);
+	}
+}
+
+void ALifeHUD::NotifyHitBoxRelease_Implementation(FName BoxName)
+{
+	Super::NotifyHitBoxRelease_Implementation(BoxName);
+	ReleaseButton(BoxName);
+}
+
+void ALifeHUD::PressButton(FName Name)
+{
+	ALifePlayerController* PC = Cast<ALifePlayerController>(PlayerOwner);
+	ALifePlayerCharacter* C = PC ? PC->GetLifeCharacter() : nullptr;
+	if (!C)
+	{
+		return;
+	}
+	ALifeVehicle* Car = C->GetVehicle();
+
+	if (Name == LifeTouch::Status)          { PC->ToggleStatus(); }
+	else if (Name == LifeTouch::Save)       { PC->SaveToSlot(); }
+	else if (Name == LifeTouch::Interact)   { C->InteractPressed(); }
+	else if (Name == LifeTouch::Jump)       { C->JumpPressed(); }
+	else if (Name == LifeTouch::Sprint)     { C->SetSprintHeld(!C->IsSprintHeld()); }
+	else if (Car && Name == LifeTouch::Gas)       { Car->SetTouchThrottle(1.f); }
+	else if (Car && Name == LifeTouch::Brake)     { Car->SetTouchThrottle(-1.f); }
+	else if (Car && Name == LifeTouch::Handbrake) { Car->SetTouchHandbrake(true); }
+	else if (Car && Name == LifeTouch::Exit)      { Car->RequestExit(); }
+}
+
+void ALifeHUD::ReleaseButton(FName Name)
+{
+	if (!HeldButtons.Remove(Name))
+	{
+		return;
+	}
+	const ALifePlayerController* PC = Cast<ALifePlayerController>(PlayerOwner);
+	ALifePlayerCharacter* C = PC ? PC->GetLifeCharacter() : nullptr;
+	if (!C)
+	{
+		return;
+	}
+	if (Name == LifeTouch::Jump)
+	{
+		C->StopJumping();
+	}
+	if (ALifeVehicle* Car = C->GetVehicle())
+	{
+		if (Name == LifeTouch::Gas || Name == LifeTouch::Brake)
+		{
+			Car->SetTouchThrottle(0.f);
+		}
+		else if (Name == LifeTouch::Handbrake)
+		{
+			Car->SetTouchHandbrake(false);
+		}
+	}
+}
+
+void ALifeHUD::ValidateHeldButtons()
+{
+	if (HeldButtons.Num() == 0 || !PlayerOwner)
+	{
+		return;
+	}
+	// Fingers currently down (mouse clicks on PC are released through the hit box itself).
+	TArray<FVector2D> Fingers;
+	for (int32 Index = 0; Index < ETouchIndex::MAX_TOUCHES; ++Index)
+	{
+		float X = 0.f, Y = 0.f;
+		bool bPressed = false;
+		PlayerOwner->GetInputTouchState(static_cast<ETouchIndex::Type>(Index), X, Y, bPressed);
+		if (bPressed)
+		{
+			Fingers.Add(FVector2D(X, Y));
+		}
+	}
+	if (!FPlatformMisc::GetUseVirtualJoysticks())
+	{
+		return; // PC test mode
+	}
+	TArray<FName> ToRelease;
+	for (const FName& Name : HeldButtons)
+	{
+		const FBox2D* Rect = ButtonRects.Find(Name);
+		const bool bStillHeld = Rect && Fingers.ContainsByPredicate([Rect](const FVector2D& F) { return Rect->IsInside(F); });
+		if (!bStillHeld)
+		{
+			ToRelease.Add(Name);
+		}
+	}
+	for (const FName& Name : ToRelease)
+	{
+		ReleaseButton(Name);
 	}
 }

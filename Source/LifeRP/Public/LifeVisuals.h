@@ -44,6 +44,12 @@ namespace LifeVisuals
 	LIFERP_API UTextRenderComponent* AddLabel(AActor* Owner, USceneComponent* Parent, const FString& Text,
 		const FVector& Location, float WorldSize, const FColor& Color, const FRotator& Rotation = FRotator::ZeroRotator);
 
+	/** True when the world renders with the mobile renderer (Android, or Mobile Preview in the editor). */
+	LIFERP_API bool IsMobileRenderer(const UObject* WorldContext);
+
+	/** True when the on-screen touch controls should be shown. */
+	LIFERP_API bool UsesTouchUI();
+
 	/** Hex-ish helper: 0-255 RGB to linear colour. */
 	LIFERP_API FLinearColor RGB(uint8 R, uint8 G, uint8 B);
 }

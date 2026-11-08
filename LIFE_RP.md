@@ -39,6 +39,12 @@ correctly under any system code page); the data tables are defaults in `LifeSett
 - **Saves:** relationships are keyed by citizen name, so saves made with the earlier English names won't carry
   relationships over.
 
+## Android
+
+Android 8.0+ (arm64, Vulkan) is supported: touch controls (engine virtual joysticks plus on-screen HUD buttons),
+mobile-renderer graphics settings, fewer citizens and cars on mobile, and a save when the app goes to the background.
+Build and install steps (in Korean): [`ANDROID_BUILD_KO.md`](ANDROID_BUILD_KO.md).
+
 ## Requirements
 
 - Unreal Engine **5.8** (the `.uproject` is associated with 5.8). The code also targets 5.6/5.7-era APIs but is only

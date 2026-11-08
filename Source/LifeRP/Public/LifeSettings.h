@@ -116,6 +116,16 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "UI", meta = (AllowedClasses = "/Script/Engine.Font")) FSoftObjectPath HUDFont;
 
+	/** Show the on-screen touch buttons on PC too (to test the mobile layout with the mouse). */
+	UPROPERTY(Config, EditAnywhere, Category = "UI") bool bForceTouchUI;
+
+	// ---------------------------------------------------------------- Mobile
+	/** Citizen / traffic counts used on the mobile renderer (Android) instead of the PC values. */
+	UPROPERTY(Config, EditAnywhere, Category = "Mobile") int32 MobileCitizenCount;
+	UPROPERTY(Config, EditAnywhere, Category = "Mobile") int32 MobileTrafficCarCount;
+	/** Countryside trees around the town on mobile (PC uses 160). */
+	UPROPERTY(Config, EditAnywhere, Category = "Mobile") int32 MobileHorizonTrees;
+
 	// ---------------------------------------------------------------- Save
 	UPROPERTY(Config, EditAnywhere, Category = "Save") FString SaveSlotName;
 	UPROPERTY(Config, EditAnywhere, Category = "Save") bool bAutoLoadOnStart;

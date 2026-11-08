@@ -135,6 +135,11 @@ ULifeSettings::ULifeSettings()
 	CarSteerDegreesPerSecond = 75.f;
 	TrafficCruiseSpeed = 1000.f;
 
+	bForceTouchUI = false;
+	MobileCitizenCount = 14;
+	MobileTrafficCarCount = 4;
+	MobileHorizonTrees = 50;
+
 	SaveSlotName = TEXT("LifeRP_Save0");
 	bAutoLoadOnStart = true;
 	bAutoSaveOnWake = true;

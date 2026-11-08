@@ -19,6 +19,7 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CoreDelegates.h"
 
 // ------------------------------------------------------------------ Input set
 
@@ -128,6 +129,7 @@ void ALifePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	ApplyContexts();
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddUObject(this, &ALifePlayerController::HandleAppBackground);
 
 	const ULifeSettings* S = ULifeSettings::Get();
 	if (S->bAutoLoadOnStart && UGameplayStatics::DoesSaveGameExist(S->SaveSlotName, 0))
@@ -142,6 +144,17 @@ void ALifePlayerController::BeginPlay()
 		LifeNotify(this, TEXT("마을에 오신 것을 환영합니다! 일자리를 구하고, 욕구를 챙기고, 친구를 사귀세요."), FLinearColor(0.6f, 1.f, 0.7f));
 		LifeNotify(this, TEXT("TAB 키로 상태와 조작법을 볼 수 있습니다."), FLinearColor(0.85f, 0.9f, 1.f));
 	}
+}
+
+void ALifePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
+	Super::EndPlay(EndPlayReason);
+}
+
+void ALifePlayerController::HandleAppBackground()
+{
+	SaveToSlot();
 }
 
 void ALifePlayerController::SetupInputComponent()
