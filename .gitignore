@@ -81,6 +81,8 @@ export_presets.cfg
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 *.csproj
+# ...except the engine-free test project that runs CityGame.Core tests without Unity.
+!tools/ci/**/*.csproj
 *.unityproj
 *.sln
 *.suo
