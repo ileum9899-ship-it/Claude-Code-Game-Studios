@@ -1,0 +1,108 @@
+{
+  "name": "CrystalCavernSimulator",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "Remotes": {
+        "$className": "Folder",
+        "Mine": {
+          "$className": "RemoteEvent"
+        },
+        "BuyUpgrade": {
+          "$className": "RemoteEvent"
+        },
+        "Rebirth": {
+          "$className": "RemoteEvent"
+        },
+        "OpenEgg": {
+          "$className": "RemoteEvent"
+        },
+        "StateChanged": {
+          "$className": "RemoteEvent"
+        },
+        "Notify": {
+          "$className": "RemoteEvent"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "ClockTime": 0,
+        "Brightness": 1,
+        "Ambient": [
+          0.25,
+          0.22,
+          0.35
+        ],
+        "OutdoorAmbient": [
+          0.3,
+          0.27,
+          0.42
+        ]
+      }
+    },
+    "Workspace": {
+      "CavernFloor": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Size": [
+            200,
+            2,
+            200
+          ],
+          "Position": [
+            0,
+            -1,
+            0
+          ],
+          "Color": [
+            0.2,
+            0.18,
+            0.26
+          ],
+          "Material": "Slate",
+          "TopSurface": "Smooth"
+        }
+      },
+      "SpawnLocation": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "Size": [
+            10,
+            1,
+            10
+          ],
+          "Position": [
+            0,
+            0.5,
+            0
+          ],
+          "Color": [
+            0.45,
+            0.35,
+            0.8
+          ],
+          "Material": "Neon",
+          "Duration": 0
+        }
+      }
+    }
+  }
+}
