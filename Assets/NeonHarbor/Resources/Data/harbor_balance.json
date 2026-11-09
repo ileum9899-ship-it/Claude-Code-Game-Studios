@@ -1,0 +1,16 @@
+{
+  "blocks": 8, "block_size": 48, "road_width": 12, "sidewalk": 3.5, "seed": 1337,
+  "walk_speed": 2.4, "run_speed": 6.2, "jump_speed": 5.2, "gravity": 18,
+  "car_accel": 13, "car_reverse_accel": 7, "car_brake": 26, "car_max_speed": 52, "car_max_reverse": 11,
+  "car_drag": 0.0042, "car_rolling": 1.3, "car_grip": 9.5, "car_handbrake_grip": 1.4,
+  "car_steer_max": 0.6, "car_steer_speed": 3.2, "car_wheelbase": 2.7,
+  "traffic_count": 34, "parked_count": 46, "traffic_cruise": 12, "traffic_turn_speed": 6, "follow_gap": 9,
+  "light_cycle": 18, "light_yellow": 2.5,
+  "ped_count": 46, "ped_radius": 70, "ped_speed": 1.35, "ped_flee_speed": 5.2, "ped_hit_speed": 4,
+  "heat_ped_hit": 1, "heat_carjack": 1, "heat_cop_hit": 1, "max_stars": 5,
+  "evade_radius": 85, "evade_seconds": 9, "bust_radius": 7, "bust_seconds": 2.5, "bust_fine": 0.1,
+  "cop_speed": 1.25, "cops_per_star": 1, "max_cops": 5,
+  "courier_reward_min": 250, "courier_reward_max": 900, "race_reward": 1500, "evade_reward": 1200,
+  "time_per_meter": 0.16, "time_base": 25, "cash_pickups": 24, "cash_min": 40, "cash_max": 160, "start_money": 500,
+  "day_length": 720
+}

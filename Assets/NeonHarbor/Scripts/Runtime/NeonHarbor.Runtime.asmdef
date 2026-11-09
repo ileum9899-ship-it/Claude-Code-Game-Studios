@@ -1,0 +1,24 @@
+{
+    "name": "NeonHarbor.Runtime",
+    "rootNamespace": "NeonHarbor.Runtime",
+    "references": [
+        "NeonHarbor.Core",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "12.0.0",
+            "define": "NEON_URP"
+        }
+    ],
+    "noEngineReferences": false
+}
