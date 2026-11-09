@@ -170,7 +170,7 @@ function spawnPolice() {
   return null;
 }
 function updatePolice(car, dt, t) {
-  const ai = car.ai, tgt = PLAYER.car ? PLAYER.car.pos : PLAYER.pos;
+  const ai = car.ai, tgt = WANTED.targetFor(car);
   const d = Math.hypot(tgt.x - car.pos.x, tgt.z - car.pos.z);
   ai.repath -= dt;
   if (ai.repath <= 0) { ai.repath = 1; ai.path = CITY.path(CITY.nearestNode(car.pos.x, car.pos.z), CITY.nearestNode(tgt.x, tgt.z)); }
@@ -223,7 +223,7 @@ function knockPed(p, vx, vz, byPlayer) {
   p.vel.set(vx * 1.05 + rand(-1, 1), 3 + Math.hypot(vx, vz) * 0.22, vz * 1.05 + rand(-1, 1));
   p.spin = rand(-8, 8);
   AUDIO.thud(0.7);
-  if (byPlayer) { addHeat(CFG.wanted.pedHit, "보행자 사고"); }
+  if (byPlayer) { WANTED.crime(CFG.wanted.pedHit, "보행자 사고"); }
   PEDS.forEach(o => { if (o !== p && o.state === "walk" && o.pos.distanceTo(p.pos) < 25) { o.state = "flee"; o.timer = 5; } });
 }
 function updatePed(p, dt) {
@@ -284,7 +284,7 @@ function resolveContacts(dt) {
         if (pc === A || pc === Bc) {
           CAMERA.shake = Math.min(1, -rv / 18); pc.health -= -rv * 1.4;
           const other = pc === A ? Bc : A;
-          if (other.type === "police" && -rv > 6) addHeat(CFG.wanted.copHit, "경찰차 충돌");
+          if (other.type === "police" && -rv > 6) WANTED.crime(CFG.wanted.copHit, "경찰차 충돌", true);
         }
       }
     }

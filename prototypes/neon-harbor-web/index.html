@@ -55,6 +55,7 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 #cross.aim i:nth-child(1) { transform: translateY(4px); } #cross.aim i:nth-child(2) { transform: translateY(-4px); }
 #cross.aim i:nth-child(3) { transform: translateX(4px); } #cross.aim i:nth-child(4) { transform: translateX(-4px); }
 #cross.hit i { background: var(--danger); }
+#fadeov { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: #000; opacity: 0; }
 #hurt { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(190,10,20,0.55) 100%); }
 
 #mission { top: calc(16px + env(safe-area-inset-top, 0px)); left: max(18px, env(safe-area-inset-left, 0px)); width: min(340px, calc(100vw - 230px)); padding: 10px 14px; background: var(--shade); border-left: 3px solid var(--cyan); border-radius: 0 8px 8px 0; backdrop-filter: blur(4px); }
@@ -86,6 +87,28 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 #play { font-family: var(--f-display); font-size: 24px; padding: 12px 40px; border: 0; border-radius: 6px; color: #120814; background: linear-gradient(90deg, #ff5ab8, #ffcc33); cursor: pointer; box-shadow: 0 8px 30px rgba(255,90,184,0.35); }
 #play:focus-visible, #helpBtn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 #helpBtn { position: fixed; z-index: 4; top: calc(150px + env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); font: 600 12px var(--f-body); color: var(--ink); background: var(--shade); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+#mapBtn { position: fixed; z-index: 4; top: calc(186px + env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); font: 600 12px var(--f-body); color: var(--ink); background: var(--shade); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+#bigmap { position: fixed; z-index: 6; inset: 0; background: rgba(5,8,14,0.94); }
+#mapcv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.maphead { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+.maphead b { font-family: var(--f-display); font-size: 24px; font-weight: 400; } .maphead span { color: var(--ink-dim); font-size: 13px; flex: 1; min-width: 0; }
+.maphead button, #shopclose { font: 600 13px var(--f-body); color: var(--ink); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+.legend { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 13px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+#shop { position: fixed; z-index: 6; inset: 0; display: grid; place-items: center; background: rgba(5,8,14,0.6); padding: 16px; }
+.shopcard { width: min(440px, 100%); background: rgba(14,18,26,0.96); border: 1px solid rgba(255,138,60,0.5); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+.shopcard h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 30px; color: #ff8a3c; } .shopcard p { margin: 0; color: var(--ink-dim); }
+#shoplist { display: grid; gap: 6px; }
+#shoplist button { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; text-align: left; font: inherit; color: var(--ink); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; padding: 8px 12px; cursor: pointer; }
+#shoplist button:hover { background: rgba(255,138,60,0.18); } #shoplist span { display: grid; min-width: 0; } #shoplist small { color: var(--ink-dim); } #shoplist em { font-style: normal; font-family: var(--f-num); font-size: 22px; color: var(--cash); }
+#wheel { position: fixed; z-index: 5; inset: 0; display: grid; place-items: center; background: radial-gradient(circle, rgba(0,0,0,0.25) 0, rgba(0,0,0,0.65) 70%); pointer-events: none; }
+#wheel .ring { position: relative; width: 300px; height: 300px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); }
+#wheel .slot { position: absolute; width: 110px; padding: 10px; border-radius: 10px; text-align: center; background: rgba(10,14,22,0.8); border: 2px solid rgba(255,255,255,0.15); display: grid; }
+#wheel .slot b { font-size: 16px; } #wheel .slot small { font-family: var(--f-num); font-size: 18px; color: var(--ink-dim); }
+#wheel .s0 { left: 95px; top: -10px; } #wheel .s1 { right: -30px; top: 170px; } #wheel .s2 { left: -30px; top: 170px; }
+#wheel .slot.sel { border-color: var(--heat); background: rgba(255,204,51,0.2); } #wheel .slot.off { opacity: 0.4; }
+#wheel p { position: absolute; top: 130px; width: 100%; text-align: center; font-size: 13px; color: var(--ink-dim); margin: 0; }
+#radio { font-size: 12px; color: var(--cyan); letter-spacing: 0.06em; margin-top: 4px; min-height: 1em; }
 #loading { position: fixed; z-index: 6; inset: 0; display: grid; place-content: center; background: #05070c; font-family: var(--f-display); font-size: 28px; letter-spacing: 0.1em; color: var(--ink-dim); }
 
 #touchUI { display: none; }
@@ -111,18 +134,26 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <div class="hud" id="tr"><div id="clock">17:00</div><div id="money">$500</div><div id="stars"><span></span><span></span><span></span><span></span><span></span></div><div id="weapon"><span id="wname">주먹</span><span id="wammo"></span></div></div>
 <div class="hud" id="cross" hidden><i></i><i></i><i></i><i></i><b></b></div>
 <div id="hurt"></div>
+<div id="fadeov"></div>
 <div class="hud" id="bl"><canvas id="minimap" width="380" height="380" aria-label="미니맵"></canvas><div class="bar" title="체력"><i id="hp" style="width:100%"></i></div><div class="bar armor" id="arbar" title="방탄복" hidden><i id="ar" style="width:0%"></i></div></div>
-<div class="hud" id="br"><div id="speedo" hidden><div id="carname">세단</div><div><span id="gear">N</span><span id="kmh">0</span><small>km/h</small></div><div class="bar" title="차량 내구도"><i id="dmg" style="width:100%"></i></div></div></div>
+<div class="hud" id="br"><div id="speedo" hidden><div id="carname">세단</div><div><span id="gear">N</span><span id="kmh">0</span><small>km/h</small></div><div class="bar" title="차량 내구도"><i id="dmg" style="width:100%"></i></div><div id="radio"></div></div></div>
 <div class="hud" id="mission" hidden><div id="mName">미션</div><div id="mGoal"></div><div class="row"><span id="mTime">0:00</span><span id="mReward"></span></div></div>
 <div class="hud" id="toasts" aria-live="polite"></div>
 <div class="hud" id="prompt" hidden></div>
 <div class="big" id="big"><div id="bigT"></div><div id="bigS"></div></div>
 <button id="helpBtn" title="조작법">조작법</button>
+<button id="mapBtn" title="지도 (M)">지도</button>
+<section id="bigmap" hidden aria-label="도시 지도"><canvas id="mapcv"></canvas>
+  <div class="maphead"><b>네온 하버 지도</b><span>클릭: 웨이포인트 설정 · 다시 클릭: 해제 · M / Esc: 닫기</span><button id="mapclose">닫기</button></div>
+  <div class="legend"><span style="--c:#ff5a6a">H 병원</span><span style="--c:#4b8cff">P 경찰서</span><span style="--c:#ff8a3c">G 총포사</span><span style="--c:#3cffc8">S 스프레이 정비소</span><span style="--c:#ffc23a">! 미션</span><span style="--c:#c86bff">W 웨이포인트</span></div>
+</section>
+<section id="shop" hidden aria-label="총포사"><div class="shopcard"><h2>총포사</h2><p>보유 자금 <b id="shopmoney">$0</b></p><div id="shoplist"></div><button id="shopclose">나가기 (Esc)</button></div></section>
+<section id="wheel" hidden aria-label="무기 선택"><div class="ring"><div data-slot="0" class="slot s0"><b>주먹</b><small></small></div><div data-slot="1" class="slot s1"><b>권총</b><small></small></div><div data-slot="2" class="slot s2"><b>기관단총</b><small></small></div><p>마우스로 고르고 Tab을 놓으세요</p></div></section>
 <div id="joy" hidden><div id="knob"></div></div>
 <div id="touchUI" aria-label="터치 조작">
   <button data-key="Fire" class="fire">사격</button><button data-key="WeaponNext">무기</button>
   <button data-key="KeyF">타기</button><button data-key="Space">점프<br>핸드브</button>
-  <button data-key="KeyH">경적</button><button data-key="ShiftLeft">달리기</button>
+  <button data-key="KeyH">경적</button><button data-key="RadioNext">라디오</button><button data-key="ShiftLeft">달리기</button>
 </div>
 
 <section id="intro">
@@ -135,8 +166,11 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
       <tr><td>Shift · Space</td><td>달리기 · 점프 / 핸드브레이크(드리프트)</td></tr>
       <tr><td>F</td><td>차량 타기·내리기 (운전 중인 차는 탈취)</td></tr>
       <tr><td>좌클릭 · 우클릭</td><td>사격·주먹 · 조준 (1·2·3 / Q 무기 교체, R 재장전)</td></tr>
+      <tr><td>Tab (누르고 있기)</td><td>무기 휠 (시간이 느려집니다)</td></tr>
+      <tr><td>M · , .</td><td>지도·웨이포인트 · 라디오 채널</td></tr>
       <tr><td>H · T · 휠</td><td>경적 · 시간 빨리감기 · 카메라 거리</td></tr>
       <tr><td>노란 빛기둥</td><td>미션: 택배 배달, 스트리트 레이스, 추격 따돌리기</td></tr>
+      <tr><td>G · S · H · P</td><td>총포사 · 스프레이 정비소(수배 해제) · 병원 · 경찰서</td></tr>
       <tr><td>휴대폰</td><td>왼쪽 엄지 조이스틱, 오른쪽 드래그로 카메라</td></tr>
     </table>
     <button id="play">도시로 나가기</button>
@@ -1234,7 +1268,7 @@ function spawnPolice() {
   return null;
 }
 function updatePolice(car, dt, t) {
-  const ai = car.ai, tgt = PLAYER.car ? PLAYER.car.pos : PLAYER.pos;
+  const ai = car.ai, tgt = WANTED.targetFor(car);
   const d = Math.hypot(tgt.x - car.pos.x, tgt.z - car.pos.z);
   ai.repath -= dt;
   if (ai.repath <= 0) { ai.repath = 1; ai.path = CITY.path(CITY.nearestNode(car.pos.x, car.pos.z), CITY.nearestNode(tgt.x, tgt.z)); }
@@ -1287,7 +1321,7 @@ function knockPed(p, vx, vz, byPlayer) {
   p.vel.set(vx * 1.05 + rand(-1, 1), 3 + Math.hypot(vx, vz) * 0.22, vz * 1.05 + rand(-1, 1));
   p.spin = rand(-8, 8);
   AUDIO.thud(0.7);
-  if (byPlayer) { addHeat(CFG.wanted.pedHit, "보행자 사고"); }
+  if (byPlayer) { WANTED.crime(CFG.wanted.pedHit, "보행자 사고"); }
   PEDS.forEach(o => { if (o !== p && o.state === "walk" && o.pos.distanceTo(p.pos) < 25) { o.state = "flee"; o.timer = 5; } });
 }
 function updatePed(p, dt) {
@@ -1348,7 +1382,7 @@ function resolveContacts(dt) {
         if (pc === A || pc === Bc) {
           CAMERA.shake = Math.min(1, -rv / 18); pc.health -= -rv * 1.4;
           const other = pc === A ? Bc : A;
-          if (other.type === "police" && -rv > 6) addHeat(CFG.wanted.copHit, "경찰차 충돌");
+          if (other.type === "police" && -rv > 6) WANTED.crime(CFG.wanted.copHit, "경찰차 충돌", true);
         }
       }
     }
@@ -1542,8 +1576,8 @@ function enterCar(car) {
     // carjack: the driver flees on foot
     const blk = CITY.blockAt(car.pos.x + 8, car.pos.z) || CITY.blockAt(car.pos.x, car.pos.z + 8) || CITY.blocks[0];
     const p = spawnPed(blk); p.state = "flee"; p.timer = 6; p.threat = PLAYER.pos.clone();
-    addHeat(CFG.wanted.carjack, "차량 탈취");
-  } else if (car.type === "police") addHeat(2, "경찰차 탈취");
+    WANTED.crime(CFG.wanted.carjack, "차량 탈취");
+  } else if (car.type === "police") WANTED.crime(2, "경찰차 탈취");
   car.ai = null; car.throttle = car.brake = car.steerIn = 0;
   if (!car.driverMesh) addDriver(car);
   // swap the seated driver for the player's look
@@ -1631,13 +1665,8 @@ function updatePlayer(dt) {
 }
 
 // ---------------------------------------------------------------- wanted level
-function addHeat(n, why) {
-  const before = PLAYER.stars;
-  PLAYER.heat = clamp(PLAYER.heat + n, 0, CFG.wanted.maxStars + 0.99);
-  PLAYER.stars = Math.min(CFG.wanted.maxStars, Math.floor(PLAYER.heat));
-  PLAYER.evade = 0;
-  if (PLAYER.stars > before) { AUDIO.star(); HUD.toast(`수배 레벨 ${"★".repeat(PLAYER.stars)} · ${why}`, "warn"); }
-}
+// direct heat (seen by police); crimes go through WANTED.crime (witnesses, search) in 10-gta.js
+function addHeat(n, why) { WANTED.raise(n, why); }
 function updateWanted(dt) {
   const cops = VEHICLES.filter(v => v.type === "police" && v.ai && v.ai.mode === "police");
   const want = Math.min(CFG.wanted.maxCops, PLAYER.stars * CFG.wanted.copsPerStar);
@@ -1645,17 +1674,12 @@ function updateWanted(dt) {
   let nearest = 1e9;
   for (const c of cops) nearest = Math.min(nearest, Math.hypot(c.pos.x - PLAYER.pos.x, c.pos.z - PLAYER.pos.z));
   nearest = Math.min(nearest, COMBAT.nearestOfficer());
+  WANTED.update(dt);
   if (PLAYER.stars > 0) {
-    if (nearest > CFG.wanted.evadeRadius) {
-      PLAYER.evade += dt;
-      if (PLAYER.evade > CFG.wanted.evadeSeconds) { PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.evade = 0; HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
-    } else PLAYER.evade = 0;
     const playerSpeed = PLAYER.car ? speedOf(PLAYER.car) : Math.hypot(PLAYER.vel.x, PLAYER.vel.z);
     if (nearest < CFG.wanted.bustRadius && playerSpeed < 2) { PLAYER.bust += dt; if (PLAYER.bust > CFG.wanted.bustSeconds) GAME.busted(); }
     else PLAYER.bust = Math.max(0, PLAYER.bust - dt);
   }
-  // police with no wanted level drive off and despawn when far
-  for (const c of cops) if (PLAYER.stars === 0) { c.ai.mode = "parked"; c.throttle = 0; c.brake = 1; }
   return nearest;
 }
 
@@ -1898,6 +1922,7 @@ const HUD = (() => {
   }
   let hurtT = 0;
   return {
+    baseMap: base,
     hurt(k) { hurtT = Math.min(1, hurtT + k); },
     toast(msg, kind = "") {
       const d = document.createElement("div"); d.className = "toast " + kind; d.textContent = msg; toasts.appendChild(d);
@@ -1923,7 +1948,7 @@ const HUD = (() => {
       $("money").textContent = "$" + Math.floor(PLAYER.money).toLocaleString();
       const hours = Math.floor(DAY.t * 24), mins = Math.floor((DAY.t * 24 * 60) % 60);
       $("clock").textContent = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-      const starEls = $("stars").children, flash = PLAYER.evade > 0 && Math.floor(t * 3) % 2 === 0;
+      const starEls = $("stars").children, flash = WANTED.st.searching && Math.floor(t * 3) % 2 === 0;
       for (let k = 0; k < 5; k++) starEls[k].className = k < PLAYER.stars ? (flash ? "on dim" : "on") : "";
       $("hp").style.width = clamp(PLAYER.health, 0, 100) + "%";
       $("ar").style.width = clamp(PLAYER.armor, 0, 100) + "%"; $("arbar").hidden = PLAYER.armor <= 0;
@@ -1940,6 +1965,7 @@ const HUD = (() => {
         $("gear").textContent = car.vel.dot(forwardOf(car)) < -0.5 ? "R" : kmh < 2 ? "N" : String(1 + Math.min(5, Math.floor(kmh / 40)));
         $("dmg").style.width = clamp(car.health, 0, 100) + "%";
         $("carname").textContent = CAR_NAMES[car.type];
+        $("radio").textContent = RADIO.station >= 0 ? "♪ " + RADIO.STATIONS[RADIO.station].name : "라디오 꺼짐 ( , . )";
       }
       // context prompt
       let prompt = "";
@@ -1955,6 +1981,22 @@ const HUD = (() => {
       g.translate(R, R); g.rotate(rot);
       g.drawImage(base, -(PLAYER.pos.x + O) * S, -(PLAYER.pos.z + O) * S);
       g.restore();
+      // police search area
+      if (PLAYER.stars > 0 && WANTED.st.searching) {
+        const lk = WANTED.st.lastKnown, dx = (lk.x - PLAYER.pos.x) * S, dz = (lk.z - PLAYER.pos.z) * S, c = Math.cos(rot), sn = Math.sin(rot);
+        g.save(); g.beginPath(); g.arc(R, R, R - 2, 0, TAU); g.clip();
+        g.fillStyle = Math.floor(t * 2) % 2 ? "rgba(255,60,80,0.22)" : "rgba(60,110,255,0.22)"; g.beginPath(); g.arc(R + dx * c - dz * sn, R + dx * sn + dz * c, WANTED.radius() * S, 0, TAU); g.fill(); g.restore();
+      }
+      // GPS route
+      if (GPS.route.length > 1) {
+        const c = Math.cos(rot), sn = Math.sin(rot);
+        g.save(); g.beginPath(); g.arc(R, R, R - 2, 0, TAU); g.clip();
+        g.strokeStyle = GPS.color; g.lineWidth = 5; g.lineJoin = "round"; g.beginPath();
+        GPS.route.forEach((p, i) => { const dx = (p.x - PLAYER.pos.x) * S, dz = (p.z - PLAYER.pos.z) * S, x = R + dx * c - dz * sn, y = R + dx * sn + dz * c; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+        g.stroke(); g.restore();
+      }
+      for (const pl of Object.values(PLACES)) blip(pl.x, pl.z, pl.color, 5, PLAYER.pos.x, PLAYER.pos.z, rot, R, false);
+      if (GPS.waypoint) blip(GPS.waypoint.x, GPS.waypoint.z, "#c86bff", 6, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
       for (const j of MISSIONS.jobs) if (!MISSIONS.active) blip(j.x, j.z, "#ffc23a", 5, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
       if (MISSIONS.target) blip(MISSIONS.target.position.x, MISSIONS.target.position.z, "#3cd4ff", 6, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
       for (const v of VEHICLES) if (v.type === "police" && v.ai && v.ai.mode === "police") blip(v.pos.x, v.pos.z, Math.floor(t * 4) % 2 ? "#ff3b3b" : "#3b6bff", 4.5, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
@@ -1974,25 +2016,27 @@ const HUD = (() => {
 
 // ---------------------------------------------------------------- game flow
 const GAME = (() => {
-  let state = "play", timer = 0;
+  let state = "play", timer = 0, where = "hospital", fadeT = 0;
   function reset(where, title, sub, kind) {
     state = "dead"; timer = 3.2; HUD.big(title, sub, kind);
     MISSIONS.cancel();
   }
   return {
     get state() { return state; },
-    busted() { if (state !== "play") return; const fine = Math.round(PLAYER.money * CFG.wanted.bustFine); PLAYER.money -= fine; reset("station", "체포됨", `벌금 -$${fine.toLocaleString()}`, "bad"); AUDIO.fail(); },
-    wasted() { if (state !== "play") return; PLAYER.money = Math.max(0, PLAYER.money - 200); reset("hospital", "의식을 잃었습니다", "병원비 -$200", "bad"); AUDIO.fail(); },
+    busted() { if (state !== "play") return; const fine = Math.round(PLAYER.money * CFG.wanted.bustFine); PLAYER.money -= fine; where = "police"; reset("police", "체포됨", `벌금 -$${fine.toLocaleString()} · 경찰서에서 풀려났습니다`, "bad"); AUDIO.fail(); },
+    wasted() { if (state !== "play") return; PLAYER.money = Math.max(0, PLAYER.money - CFG.gta.hospitalBill); where = "hospital"; reset("hospital", "의식을 잃었습니다", `병원비 -$${CFG.gta.hospitalBill} · 병원에서 깨어났습니다`, "bad"); AUDIO.fail(); },
+    fade(t) { fadeT = t; },
     update(dt) {
+      if (fadeT > 0) { fadeT -= dt; $("fadeov").style.opacity = clamp(fadeT, 0, 1).toFixed(2); }
       if (state === "play") { if (PLAYER.health <= 0) this.wasted(); return; }
       timer -= dt; grade.uniforms.flash.value.setRGB(0.25, 0.02, 0.02).multiplyScalar(clamp(timer / 3, 0, 1));
       if (timer <= 0) {
         if (PLAYER.car) { const c = PLAYER.car; if (c.driverMesh) { c.body.remove(c.driverMesh.root); c.driverMesh = null; } c.ai = { mode: "parked" }; PLAYER.car = null; }
         PLAYER.rig.root.visible = true; PLAYER.rig.root.rotation.set(0, 0, 0); PLAYER.downTimer = 0;
-        PLAYER.pos.set(SPAWN.x, 0.18, SPAWN.z); PLAYER.vel.set(0, 0, 0); PLAYER.health = 100; PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.bust = 0;
+        const rp = UI.respawnPoint(where); PLAYER.pos.copy(rp); PLAYER.vel.set(0, 0, 0); PLAYER.health = 100; WANTED.clear();
         for (const v of [...VEHICLES]) if (v.type === "police") removeCar(v);
         COMBAT.reset();
-        grade.uniforms.flash.value.setRGB(0, 0, 0); state = "play"; CAMERA.pos.set(SPAWN.x, 5, SPAWN.z + 8);
+        grade.uniforms.flash.value.setRGB(0, 0, 0); state = "play"; CAMERA.pos.set(rp.x, 5, rp.z + 8);
       }
     },
   };
@@ -2041,7 +2085,11 @@ function resize() {
 addEventListener("resize", resize);
 let clockT = 0, lastFrame = performance.now(), started = false;
 function frame(now) {
-  const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now; clockT += dt;
+  const rawDt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+  if ($("intro").hidden) UI.update(rawDt);
+  if (UI.paused) { UI.redrawMap(); HUD.update(rawDt, clockT, 1e9); INPUT.pressed.clear(); composer.render(rawDt); requestAnimationFrame(frame); return; }
+  const dt = rawDt * UI.timeScale; clockT += dt;
+  GPS.update(rawDt);
   if (GAME.state === "play") updatePlayer(dt);
   GAME.update(dt);
   for (const v of VEHICLES) {
@@ -2079,7 +2127,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }
@@ -2238,7 +2286,7 @@ const COMBAT = (() => {
     for (let k = 0; k < 3; k++) emit("hit", new THREE.Vector3(p.pos.x, p.pos.y + 1.2, p.pos.z), new THREE.Vector3(dir.x * 2 + rand(-1, 1), rand(0.5, 2), dir.z * 2 + rand(-1, 1)), 0.35, 0.18);
     if (p.health <= 0) {
       knockPed(p, dir.x * 3, dir.z * 3, false);
-      if (byPlayer) addHeat(1, "보행자 공격");
+      if (byPlayer) WANTED.crime(1, "보행자 공격");
     } else { p.state = "flee"; p.timer = 7; p.threat = P.pos.clone(); }
   }
   function damageCar(v, amount, byPlayer) {
@@ -2272,7 +2320,7 @@ const COMBAT = (() => {
       HUD.hurt(1);
     }
     scarePeds(c, 60, 8);
-    if (v.burnByPlayer) addHeat(1, "차량 폭발");
+    if (v.burnByPlayer) WANTED.crime(1, "차량 폭발");
   }
   const BURNT = new THREE.MeshStandardMaterial({ color: col(0x161412), roughness: 0.95, metalness: 0.2 });
 
@@ -2298,10 +2346,10 @@ const COMBAT = (() => {
     for (let k = 0; k < 3; k++) emit("hit", new THREE.Vector3(o.pos.x, o.pos.y + 1.2, o.pos.z), new THREE.Vector3(rand(-1, 1), rand(0.5, 2), rand(-1, 1)), 0.35, 0.18);
     if (applyDamage(o, amount)) {
       o.down = true; o.downT = 14; o.rig.root.rotation.set(-Math.PI / 2, o.yaw, 0, "YXZ"); o.pos.y = CITY.groundHeight(o.pos.x, o.pos.z) + 0.12;
-      if (byPlayer) addHeat(1, "경찰관 공격");
+      if (byPlayer) WANTED.crime(1, "경찰관 공격", true);
       // drop ammo
       dropPickup("ammo", o.pos.clone());
-    } else if (byPlayer && P.stars < 2) addHeat(2 - P.heat + 0.01, "경찰관 공격");
+    } else if (byPlayer && P.stars < 2) WANTED.crime(2 - P.heat + 0.01, "경찰관 공격", true);
   }
   function lineOfSight(a, b) { return raycastBoxes(a.x, a.y, a.z, b.x, b.y, b.z) >= 0.999; }
   function updateOfficers(dt) {
@@ -2309,7 +2357,7 @@ const COMBAT = (() => {
       const o = OFFICERS[k];
       if (o.down) { o.downT -= dt; if (o.downT < 0 || o.pos.distanceTo(P.pos) > 150) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); } else o.rig.root.position.copy(o.pos); continue; }
       if (P.stars === 0 && o.pos.distanceTo(P.pos) > 60) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); continue; }
-      const tgt = P.car ? P.car.pos : P.pos, d = Math.hypot(tgt.x - o.pos.x, tgt.z - o.pos.z);
+      const tgt = WANTED.st.searching ? WANTED.targetFor(o) : (P.car ? P.car.pos : P.pos), d = Math.hypot(tgt.x - o.pos.x, tgt.z - o.pos.z);
       const eye = new THREE.Vector3(o.pos.x, o.pos.y + 1.5, o.pos.z), aimAt = new THREE.Vector3(tgt.x, (P.car ? 0.9 : P.pos.y + 1.2), tgt.z);
       const los = d < 70 && lineOfSight(eye, aimAt);
       const want = Math.atan2(tgt.x - o.pos.x, tgt.z - o.pos.z);
@@ -2439,11 +2487,11 @@ const COMBAT = (() => {
     const dir = d.clone(); dir.y = 0; dir.normalize();
     if (hit.kind === "ped") { damagePed(hit.ped, spec.damage, dir, true); hitMarker = 0.18; }
     else if (hit.kind === "officer") { hurtOfficer(hit.officer, spec.damage, true); hitMarker = 0.18; }
-    else if (hit.kind === "car") { damageCar(hit.car, spec.damage * 0.7, true); hitMarker = 0.12; for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1); if (hit.car.type === "police") addHeat(1, "경찰차 사격"); }
+    else if (hit.kind === "car") { damageCar(hit.car, spec.damage * 0.7, true); hitMarker = 0.12; for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1); if (hit.car.type === "police") WANTED.crime(1, "경찰차 사격", true); }
     else if (hit.kind !== "none") for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1);
     // gunfire is noticed
     scarePeds(P.pos, 45);
-    if (gunfireHeatCd <= 0 && copNearby(55)) { addHeat(1, "총기 사용"); gunfireHeatCd = 6; }
+    if (gunfireHeatCd <= 0) { WANTED.crime(1, "총기 사용"); gunfireHeatCd = 6; }
     if (w.clip === 0 && w.reserve > 0) startReload();
   }
   function punch() {
@@ -2461,9 +2509,9 @@ const COMBAT = (() => {
     if (target) {
       AUDIO.thud(0.5); hitMarker = 0.15;
       target.health = (target.health ?? 40) - WEAPONS.fist.damage;
-      if (target.health <= 0) { knockPed(target, f.x * 3, f.y * 3, false); addHeat(0.5, "폭행"); }
-      else { target.state = "flee"; target.timer = 6; target.threat = P.pos.clone(); target.pos.x += f.x * 0.4; target.pos.z += f.y * 0.4; addHeat(0.25, "폭행"); }
-      if (copNearby(30)) addHeat(1, "경찰 앞에서 폭행");
+      if (target.health <= 0) { knockPed(target, f.x * 3, f.y * 3, false); WANTED.crime(0.5, "폭행"); }
+      else { target.state = "flee"; target.timer = 6; target.threat = P.pos.clone(); target.pos.x += f.x * 0.4; target.pos.z += f.y * 0.4; WANTED.crime(0.25, "폭행"); }
+      if (copNearby(30)) WANTED.crime(1, "경찰 앞에서 폭행");
     } else if (officer) { AUDIO.thud(0.5); hitMarker = 0.15; hurtOfficer(officer, WEAPONS.fist.damage, true); }
   }
 
@@ -2541,5 +2589,316 @@ const COMBAT = (() => {
     damageCar, explode,
     debugCast() { const { o, d } = aimRay(); const startT = o.distanceTo(P.pos) - 0.2; const h = castShot(o, d, 200, Math.max(0.5, startT), P.car); return { kind: h.kind, t: h.t, o: o.toArray(), d: d.toArray(), startT }; },
   };
+})();
+// ---------------------------------------------------------------- open-world systems: witnesses & police search, map + GPS,
+// weapon wheel, gun shop, spray garage, hospital / police station, car radio, health regen.
+// Mirrors Core/WantedSystem.cs and Core/Shop.cs in the Unity build.
+CFG.gta = {
+  witnessDelay: 4, witnessRadius: 30, searchBase: 60, searchPerStar: 25, sightCar: 90, sightFoot: 70,
+  prices: { pistol: 400, smg: 1200, pistolAmmo: 60, smgAmmo: 120, armor: 300 }, sprayCost: 100, hospitalBill: 200,
+  regenCap: 50, regenDelay: 5, regenRate: 3,
+};
+
+// ---------- places
+const PLACES = (() => {
+  const blk = (i, j) => CITY.blocks[j * CITY.N + i];
+  const side = (b, t) => { const q = pedPathPoint(b, t); return { x: q[0], z: q[1] }; };
+  return {
+    hospital: { name: "병원", ...side(blk(3, 4), 0.38), color: "#ff5a6a", letter: "H" },
+    police: { name: "경찰서", ...side(blk(5, 5), 0.31), color: "#4b8cff", letter: "P" },
+    gunshop: { name: "총포사", ...side(blk(4, 3), 0.56), color: "#ff8a3c", letter: "G" },
+    spray: { name: "스프레이 정비소", x: 2 * CITY.PITCH + 30, z: 2 * CITY.PITCH - 3, color: "#3cffc8", letter: "S", road: true },
+  };
+})();
+
+// ---------- GTA-style wanted level
+const WANTED = (() => {
+  const P = PLAYER, G = CFG.gta;
+  const reports = [];
+  const st = { seen: false, searching: false, lastKnown: new THREE.Vector3(), anchor: false, searchPts: new Map() };
+  const radius = () => G.searchBase + G.searchPerStar * P.stars;
+  function copCanSee() {
+    const eye = new THREE.Vector3(P.pos.x, (P.car ? 1.0 : P.pos.y + 1.4), P.pos.z);
+    for (const v of VEHICLES) {
+      if (v.type !== "police" || v.exploded || !v.ai || (v.ai.mode !== "police" && !(v.ai.mode === "parked" && P.stars > 0))) continue;
+      const d = Math.hypot(v.pos.x - eye.x, v.pos.z - eye.z);
+      if (d < G.sightCar && raycastBoxes(v.pos.x, 1.4, v.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
+    }
+    for (const o of COMBAT.OFFICERS) {
+      if (o.down) continue;
+      const d = o.pos.distanceTo(eye);
+      if (d < G.sightFoot && raycastBoxes(o.pos.x, o.pos.y + 1.5, o.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
+    }
+    return false;
+  }
+  function witnessed() {
+    for (const p of PEDS) if ((p.state === "walk" || p.state === "flee") && p.pos.distanceTo(P.pos) < G.witnessRadius) return true;
+    return false;
+  }
+  function raise(n, why) {
+    const before = P.stars;
+    P.heat = clamp(P.heat + n, 0, CFG.wanted.maxStars + 0.99);
+    P.stars = Math.min(CFG.wanted.maxStars, Math.floor(P.heat));
+    P.evade = 0;
+    if (before === 0 && P.stars > 0) st.anchor = true;
+    if (P.stars > before) { AUDIO.star(); HUD.toast(`수배 레벨 ${"★".repeat(P.stars)} · ${why}`, "warn"); }
+  }
+  return {
+    st, radius,
+    raise,
+    // a crime: police witnesses count now, bystanders phone it in, nobody watching → nothing
+    crime(n, why, againstPolice = false) {
+      if (againstPolice || copCanSee()) { raise(n, why); return; }
+      if (witnessed()) { reports.push({ t: G.witnessDelay, n, why }); if (reports.length === 1) HUD.toast("누군가 휴대폰을 꺼냈습니다…", "warn"); }
+    },
+    get pending() { return reports.length; },
+    clear() { P.heat = 0; P.stars = 0; P.evade = 0; P.bust = 0; reports.length = 0; st.searching = false; },
+    update(dt) {
+      for (let k = reports.length - 1; k >= 0; k--) {
+        const r = reports[k]; r.t -= dt; if (r.t > 0) continue;
+        reports.splice(k, 1); raise(r.n, "목격자 신고: " + r.why);
+      }
+      st.seen = P.stars > 0 && copCanSee();
+      if (P.stars === 0) { st.searching = false; P.bust = 0; return; }
+      if (st.anchor) { st.lastKnown.copy(P.pos); st.anchor = false; }
+      if (st.seen) { st.lastKnown.copy(P.pos); st.searching = false; P.evade = 0; }
+      else {
+        st.searching = true;
+        if (Math.hypot(P.pos.x - st.lastKnown.x, P.pos.z - st.lastKnown.z) > radius()) {
+          P.evade += dt;
+          if (P.evade > CFG.wanted.evadeSeconds) { this.clear(); HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
+        }
+      }
+    },
+    // where a police unit should drive to: the player when seen, else a point inside the search area
+    targetFor(car) {
+      if (!st.searching) return PLAYER.car ? PLAYER.car.pos : PLAYER.pos;
+      let p = st.searchPts.get(car);
+      if (!p || Math.hypot(car.pos.x - p.x, car.pos.z - p.z) < 12 || p.lk !== st.lastKnown.x) {
+        const a = rand(0, TAU), r = rand(0, radius() * 0.8);
+        p = new THREE.Vector3(st.lastKnown.x + Math.cos(a) * r, 0, st.lastKnown.z + Math.sin(a) * r); p.lk = st.lastKnown.x;
+        st.searchPts.set(car, p);
+      }
+      return p;
+    },
+  };
+})();
+
+// ---------- GPS route (shortest road path) to the waypoint or mission target
+const GPS = (() => {
+  let route = [], timer = 0, target = null, color = "#c86bff";
+  return {
+    waypoint: null,
+    get route() { return route; }, get color() { return color; },
+    update(dt) {
+      timer -= dt; if (timer > 0) return; timer = 0.5;
+      const mt = MISSIONS.target ? MISSIONS.target.position : null;
+      target = mt || this.waypoint; color = mt ? "#ffd23c" : "#c86bff";
+      if (!target) { route = []; return; }
+      if (this.waypoint && !mt && Math.hypot(PLAYER.pos.x - this.waypoint.x, PLAYER.pos.z - this.waypoint.z) < 8) { this.waypoint = null; HUD.toast("목적지 도착"); route = []; return; }
+      const nodes = CITY.path(CITY.nearestNode(PLAYER.pos.x, PLAYER.pos.z), CITY.nearestNode(target.x, target.z));
+      route = [{ x: PLAYER.pos.x, z: PLAYER.pos.z }, ...nodes.map(n => ({ x: n[0] * CITY.PITCH, z: n[1] * CITY.PITCH })), { x: target.x, z: target.z }];
+    },
+  };
+})();
+
+// ---------- radio (procedural stations)
+const RADIO = (() => {
+  const STATIONS = [
+    { name: "NEON FM", tag: "신스웨이브", bpm: 108 },
+    { name: "HARBOR BEATS", tag: "힙합", bpm: 88 },
+    { name: "LOW TIDE", tag: "앰비언트", bpm: 70 },
+  ];
+  let ctx = null, out = null, station = -1, nextT = 0, step = 0, timer = null;
+  const ROOTS = [57, 53, 48, 55]; // A3 F3 C3 G3  (i–VI–III–VII in A minor)
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  function note(f, t, dur, type, vol, filt = 0) {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    if (filt) { const fl = ctx.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = filt; o.connect(fl); fl.connect(g); } else o.connect(g);
+    g.connect(out); o.start(t); o.stop(t + dur + 0.05);
+  }
+  let noise = null;
+  function hit(t, kind) {
+    if (!noise) { noise = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate); const d = noise.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; }
+    if (kind === "kick") { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.15); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.35); return; }
+    const s = ctx.createBufferSource(); s.buffer = noise; const f = ctx.createBiquadFilter(); const g = ctx.createGain();
+    f.type = kind === "hat" ? "highpass" : "bandpass"; f.frequency.value = kind === "hat" ? 7000 : 1800;
+    const dur = kind === "hat" ? 0.05 : 0.18; g.gain.setValueAtTime(kind === "hat" ? 0.25 : 0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + dur + 0.02);
+  }
+  function schedule() {
+    if (station < 0 || !ctx) return;
+    const S = STATIONS[station], sixteenth = 60 / S.bpm / 4;
+    while (nextT < ctx.currentTime + 0.15) {
+      const t = nextT, bar = Math.floor(step / 16) % 4, s16 = step % 16, root = ROOTS[bar];
+      if (station === 0) { // synthwave: driving octave bass, arpeggio, four-on-the-floor
+        note(mtof(root - 12 + (s16 % 2 ? 12 : 0)), t, sixteenth * 0.9, "sawtooth", 0.16, 900);
+        if (s16 % 2 === 0) note(mtof(root + 12 + [0, 3, 7, 12, 7, 3, 0, 7][(s16 / 2) % 8]), t, sixteenth * 1.6, "square", 0.05, 2400);
+        if (s16 % 4 === 0) hit(t, "kick"); if (s16 === 4 || s16 === 12) hit(t, "snare"); if (s16 % 2 === 1) hit(t, "hat");
+        if (s16 === 0) [0, 3, 7].forEach(i => note(mtof(root + 12 + i), t, sixteenth * 15, "triangle", 0.035));
+      } else if (station === 1) { // boom-bap: swung hats, sub bass, sparse keys
+        if (s16 === 0 || s16 === 7 || s16 === 10) hit(t, "kick"); if (s16 === 4 || s16 === 12) hit(t, "snare"); if (s16 % 2 === 0) hit(t + (s16 % 4 === 2 ? sixteenth * 0.3 : 0), "hat");
+        if (s16 === 0 || s16 === 10) note(mtof(root - 24), t, sixteenth * 5, "sine", 0.4);
+        if (s16 === 2 || s16 === 6 || s16 === 14) note(mtof(root + [3, 7, 10][((s16 / 4) | 0) % 3]), t, sixteenth * 3, "triangle", 0.07, 1600);
+      } else { // ambient pads + slow bell
+        if (s16 === 0) [0, 7, 12, 15].forEach(i => note(mtof(root + i), t, sixteenth * 18, "sine", 0.06));
+        if (s16 === 8 && Math.random() < 0.6) note(mtof(root + 24 + [0, 3, 7, 10][(Math.random() * 4) | 0]), t, sixteenth * 10, "sine", 0.05);
+      }
+      nextT += sixteenth; step++;
+    }
+  }
+  return {
+    STATIONS,
+    get station() { return station; },
+    set(i, quiet = false) {
+      station = i;
+      if (i >= 0) {
+        try { if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); out = ctx.createGain(); out.gain.value = 0.32; out.connect(ctx.destination); } } catch (e) { return; }
+        if (ctx.state === "suspended") ctx.resume();
+        nextT = ctx.currentTime + 0.05; step = 0;
+        if (!timer) timer = setInterval(schedule, 40);
+        HUD.toast(`라디오: ${STATIONS[i].name} · ${STATIONS[i].tag}`);
+      } else if (!quiet) HUD.toast("라디오 끔");
+    },
+    next(dir) { const n = STATIONS.length + 1; this.set(((station + 1 + dir) % n + n) % n - 1); },
+  };
+})();
+
+// ---------- UI: full map, weapon wheel, shop
+const UI = (() => {
+  const P = PLAYER;
+  let mode = null; // "map" | "wheel" | "shop" | null
+  let wheelSel = 0, wheelX = 0, wheelY = 0, sprayLock = 0, healthPrev = 100, lastHurt = 0;
+  const mapEl = $("bigmap"), mapCv = $("mapcv"), mg = mapCv.getContext("2d");
+  const SHOP_ITEMS = [
+    { id: "pistol", name: "권총", desc: "반자동 · 12발 탄창" }, { id: "smg", name: "기관단총", desc: "자동 · 30발 탄창" },
+    { id: "pistolAmmo", name: "권총 탄약 ×24", desc: "탄창 2개" }, { id: "smgAmmo", name: "기관단총 탄약 ×60", desc: "탄창 2개" },
+    { id: "armor", name: "방탄복", desc: "피해의 2/3 흡수" },
+  ];
+  function buy(id) {
+    const price = CFG.gta.prices[id], A = P.arsenal;
+    if ((id === "pistol" || id === "smg") && A[id].owned) return HUD.toast("이미 가지고 있습니다");
+    if (id === "pistolAmmo" && !A.pistol.owned) return HUD.toast("권총이 필요합니다");
+    if (id === "smgAmmo" && !A.smg.owned) return HUD.toast("기관단총이 필요합니다");
+    if (id === "armor" && P.armor >= 100) return HUD.toast("방탄복이 이미 가득합니다");
+    if (P.money < price) return HUD.toast("돈이 부족합니다", "warn");
+    P.money -= price; AUDIO.cash();
+    if (id === "pistol" || id === "smg") { const s = WEAPONS[id]; A[id].owned = true; A[id].clip = s.mag; A[id].reserve = s.start - s.mag; P.weapon = id; }
+    else if (id === "pistolAmmo") A.pistol.reserve += 24; else if (id === "smgAmmo") A.smg.reserve += 60; else P.armor = 100;
+    HUD.toast(`구매: ${SHOP_ITEMS.find(x => x.id === id).name}`, "good"); renderShop();
+  }
+  function renderShop() {
+    $("shoplist").innerHTML = SHOP_ITEMS.map((it, k) => `<button data-buy="${it.id}"><kbd>${k + 1}</kbd><span><b>${it.name}</b><small>${it.desc}</small></span><em>$${CFG.gta.prices[it.id].toLocaleString()}</em></button>`).join("");
+    $("shopmoney").textContent = "$" + Math.floor(P.money).toLocaleString();
+    document.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => buy(b.dataset.buy));
+  }
+  function open(m) {
+    mode = m;
+    mapEl.hidden = m !== "map"; $("shop").hidden = m !== "shop"; $("wheel").hidden = m !== "wheel";
+    if (m === "shop") renderShop();
+    if (m === "map") drawMap();
+    if (m && m !== "wheel" && document.pointerLockElement) document.exitPointerLock();
+  }
+  // map: north = -z at the top, scaled to fit
+  const S = 1.15, O = 50;
+  function mapScale() { const W = mapCv.width, base = HUD.baseMap; return Math.min(W / base.width, mapCv.height / base.height); }
+  function drawMap() {
+    const base = HUD.baseMap, k = mapScale();
+    mapCv.width = mapEl.clientWidth * devicePixelRatio; mapCv.height = mapEl.clientHeight * devicePixelRatio;
+    const kk = Math.min(mapCv.width / base.width, mapCv.height / base.height), ox = (mapCv.width - base.width * kk) / 2, oy = (mapCv.height - base.height * kk) / 2;
+    mg.fillStyle = "#0b1622"; mg.fillRect(0, 0, mapCv.width, mapCv.height);
+    mg.drawImage(base, ox, oy, base.width * kk, base.height * kk);
+    const W2S = (x, z) => [ox + (x + O) * S * kk, oy + (z + O) * S * kk];
+    mapEl._w2s = W2S; mapEl._s2w = (sx, sy) => [(sx - ox) / (S * kk) - O, (sy - oy) / (S * kk) - O];
+    if (GPS.route.length) { mg.strokeStyle = GPS.color; mg.lineWidth = 4 * devicePixelRatio; mg.beginPath(); GPS.route.forEach((p, i) => { const [x, y] = W2S(p.x, p.z); i ? mg.lineTo(x, y) : mg.moveTo(x, y); }); mg.stroke(); }
+    if (P.stars > 0 && WANTED.st.searching) { const [x, y] = W2S(WANTED.st.lastKnown.x, WANTED.st.lastKnown.z); mg.fillStyle = "rgba(255,60,80,0.18)"; mg.beginPath(); mg.arc(x, y, WANTED.radius() * S * kk, 0, TAU); mg.fill(); }
+    const icon = (x, z, color, letter) => { const [sx, sy] = W2S(x, z), r = 11 * devicePixelRatio; mg.fillStyle = color; mg.beginPath(); mg.arc(sx, sy, r, 0, TAU); mg.fill(); mg.fillStyle = "#0b0f16"; mg.font = `bold ${13 * devicePixelRatio}px sans-serif`; mg.textAlign = "center"; mg.textBaseline = "middle"; mg.fillText(letter, sx, sy + 1); };
+    for (const pl of Object.values(PLACES)) icon(pl.x, pl.z, pl.color, pl.letter);
+    MISSIONS.jobs.forEach(j => icon(j.x, j.z, "#ffc23a", "!"));
+    if (GPS.waypoint) icon(GPS.waypoint.x, GPS.waypoint.z, "#c86bff", "W");
+    const [px, py] = W2S(P.pos.x, P.pos.z), h = P.car ? P.car.yaw : P.yaw;
+    mg.save(); mg.translate(px, py); mg.rotate(Math.PI - h); mg.fillStyle = "#fff"; mg.strokeStyle = "#000"; mg.lineWidth = 2;
+    mg.beginPath(); mg.moveTo(0, -14 * devicePixelRatio); mg.lineTo(9 * devicePixelRatio, 10 * devicePixelRatio); mg.lineTo(0, 5 * devicePixelRatio); mg.lineTo(-9 * devicePixelRatio, 10 * devicePixelRatio); mg.closePath(); mg.fill(); mg.stroke(); mg.restore();
+  }
+  mapCv.addEventListener("click", e => {
+    const r = mapCv.getBoundingClientRect(); const [x, z] = mapEl._s2w((e.clientX - r.left) * devicePixelRatio, (e.clientY - r.top) * devicePixelRatio);
+    if (GPS.waypoint && Math.hypot(GPS.waypoint.x - x, GPS.waypoint.z - z) < 25) { GPS.waypoint = null; HUD.toast("웨이포인트 해제"); }
+    else { GPS.waypoint = new THREE.Vector3(clamp(x, 0, CITY.SIZE), 0, clamp(z, 0, CITY.SIZE)); HUD.toast("웨이포인트 설정 — 미니맵의 보라색 경로를 따라가세요"); }
+    GPS.update(1); drawMap();
+  });
+  $("mapclose").onclick = () => open(null); $("shopclose").onclick = () => open(null);
+  $("mapBtn").onclick = () => open(mode === "map" ? null : "map");
+  // weapon wheel
+  const SLOTS = ["fist", "pistol", "smg"];
+  function renderWheel() {
+    document.querySelectorAll("#wheel [data-slot]").forEach((el, k) => {
+      const id = SLOTS[k], w = P.arsenal[id], s = WEAPONS[id];
+      el.classList.toggle("sel", k === wheelSel); el.classList.toggle("off", !w.owned);
+      el.querySelector("small").textContent = s.melee ? "" : w.owned ? `${w.clip} / ${w.reserve}` : "없음";
+    });
+  }
+  function near(pl, r) { return Math.hypot(P.pos.x - pl.x, P.pos.z - pl.z) < r; }
+  return {
+    get mode() { return mode; },
+    get paused() { return mode === "map" || mode === "shop"; },
+    get timeScale() { return mode === "wheel" ? 0.25 : 1; },
+    respawnPoint(kind) { const p = PLACES[kind]; return new THREE.Vector3(p.x, 0.18, p.z); },
+    update(dt) {
+      const k = INPUT.pressed;
+      if ((k.has("KeyM") || k.has("Escape") && mode === "map") && mode !== "shop") open(mode === "map" ? null : "map");
+      if (mode === "shop") {
+        SHOP_ITEMS.forEach((it, i) => { if (k.has("Digit" + (i + 1))) buy(it.id); });
+        if (k.has("Escape") || k.has("KeyF") || !near(PLACES.gunshop, 4)) open(null);
+        k.delete("KeyF"); k.delete("Digit1"); k.delete("Digit2"); k.delete("Digit3");
+        return;
+      }
+      if (mode === "map") return;
+      // weapon wheel while Tab is held
+      if (isDown("Tab") && !P.car && GAME.state === "play") {
+        if (mode !== "wheel") { open("wheel"); wheelX = wheelY = 0; wheelSel = SLOTS.indexOf(P.weapon); }
+        wheelX += INPUT.mdx; wheelY += INPUT.mdy; INPUT.mdx = INPUT.mdy = 0;
+        if (Math.hypot(wheelX, wheelY) > 30) { const a = Math.atan2(wheelX, -wheelY); wheelSel = a < -Math.PI / 3 ? 2 : a > Math.PI / 3 ? 1 : 0; }
+        renderWheel();
+      } else if (mode === "wheel") { const id = SLOTS[wheelSel]; if (P.arsenal[id].owned) { P.weapon = id; P.reload = 0; } open(null); }
+      // shops & services
+      if (!P.car && near(PLACES.gunshop, 2.5) && GAME.state === "play" && mode === null && !UI._shopCooldown) { open("shop"); UI._shopCooldown = true; }
+      if (!near(PLACES.gunshop, 4)) UI._shopCooldown = false;
+      sprayLock -= dt;
+      if (P.car && near(PLACES.spray, 5) && sprayLock <= 0) {
+        sprayLock = 4;
+        if (WANTED.st.seen) HUD.toast("경찰이 보고 있어 정비소에 들어갈 수 없습니다", "warn");
+        else if (P.money < CFG.gta.sprayCost) HUD.toast(`$${CFG.gta.sprayCost}가 필요합니다`, "warn");
+        else {
+          P.money -= CFG.gta.sprayCost; const c = P.car;
+          const pm = paintMat(pick([0x1d3b6e, 0xb8b8bc, 0x111114, 0x8a1d1d, 0xe6e6e6, 0x2e4d3a, 0xf2c31b, 0x1f8fd6]));
+          c.root.traverse(m => { if (m.isMesh && m.material && m.material.isMeshPhysicalMaterial && m.material !== paintMat(0xf2f2f2)) m.material = pm; });
+          c.health = 100; c.burning = 0; GAME.fade(1.2);
+          const had = P.stars > 0; WANTED.clear(); AUDIO.cash();
+          HUD.big("새 차 같네요", had ? "도색 완료 · 수배 해제" : `도색·수리 완료 -$${CFG.gta.sprayCost}`, "good");
+        }
+      }
+      // radio
+      if (P.car) {
+        if (k.has("Period") || k.has("RadioNext")) RADIO.next(1);
+        if (k.has("Comma")) RADIO.next(-1);
+        if (!UI._inCar) { UI._inCar = true; RADIO.set(UI._lastStation ?? ((Math.random() * RADIO.STATIONS.length) | 0)); }
+      } else if (UI._inCar) { UI._inCar = false; UI._lastStation = RADIO.station; RADIO.set(-1, true); }
+      // health regen (to half) after a quiet spell
+      if (P.health < healthPrev - 0.01) lastHurt = 0; else lastHurt += dt;
+      if (lastHurt > CFG.gta.regenDelay && P.health > 0 && P.health < CFG.gta.regenCap) P.health = Math.min(CFG.gta.regenCap, P.health + CFG.gta.regenRate * dt);
+      healthPrev = P.health;
+    },
+    redrawMap() { if (mode === "map") drawMap(); },
+  };
+})();
+
+// world markers for places
+(() => {
+  for (const pl of Object.values(PLACES)) {
+    const c = new THREE.Color(pl.color);
+    const b = beam(c); b.position.set(pl.x, pl.road ? 0 : 0.18, pl.z);
+    b.children[0].scale.set(pl.road ? 2.2 : 1, 0.35, pl.road ? 2.2 : 1); b.children[0].position.y = 7; b.userData.ring.scale.setScalar(pl.road ? 2.2 : 1);
+  }
 })();
 </script>

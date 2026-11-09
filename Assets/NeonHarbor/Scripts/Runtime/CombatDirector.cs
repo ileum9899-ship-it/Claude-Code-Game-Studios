@@ -48,7 +48,9 @@ namespace NeonHarbor.Runtime
         public bool Aiming { get; private set; }
 
         /// <summary>Wanted heat to add (amount, reason).</summary>
-        public event Action<float, string> Heat;
+        public event Action<float, string, bool> Heat;
+        /// <summary>Set by the game: where officers should run (player when seen, search area otherwise).</summary>
+        public Func<object, Vector3> OfficerTarget;
         /// <summary>Message for the HUD.</summary>
         public event Action<string> Toast;
         /// <summary>The player took damage (0..1 strength).</summary>
@@ -184,7 +186,7 @@ namespace NeonHarbor.Runtime
         {
             p.Health -= amount;
             for (int k = 0; k < 3; k++) Emit(FxHit, p.Pos + Vector3.up * 1.2f, new Vector3(dir.x * 2 + R(-1, 1), R(0.5f, 2), dir.z * 2 + R(-1, 1)), 0.35f, 0.18f);
-            if (p.Health <= 0) { world.Knock(p, dir.x * 3, dir.z * 3, false); if (byPlayer) Heat?.Invoke(1, "보행자 공격"); }
+            if (p.Health <= 0) { world.Knock(p, dir.x * 3, dir.z * 3, false); if (byPlayer) Heat?.Invoke(1, "보행자 공격", false); }
             else { p.Mode = Pedestrian.State.Flee; p.Timer = 7; p.Threat = player.Position; }
         }
 
@@ -232,7 +234,7 @@ namespace NeonHarbor.Runtime
                 PlayerHurt?.Invoke(1);
             }
             ScarePeds(c, 60, 8);
-            if (v.BurnByPlayer) Heat?.Invoke(1, "차량 폭발");
+            if (v.BurnByPlayer) Heat?.Invoke(1, "차량 폭발", false);
         }
 
         // ------------------------------------------------------------------ officers
@@ -266,10 +268,10 @@ namespace NeonHarbor.Runtime
             {
                 o.Down = true; o.DownTimer = 14; o.Pos.y = city.GroundHeight(o.Pos.x, o.Pos.z) + 0.12f;
                 o.Rig.Root.SetPositionAndRotation(o.Pos, Quaternion.Euler(-90, o.Yaw * Mathf.Rad2Deg, 0));
-                if (byPlayer) Heat?.Invoke(1, "경찰관 공격");
+                if (byPlayer) Heat?.Invoke(1, "경찰관 공격", true);
                 Drop("ammo", o.Pos, 0);
             }
-            else if (byPlayer) Heat?.Invoke(0.6f, "경찰관 공격");
+            else if (byPlayer) Heat?.Invoke(0.6f, "경찰관 공격", true);
         }
 
         private void UpdateOfficers(float dt, int stars, bool playing)
@@ -285,7 +287,7 @@ namespace NeonHarbor.Runtime
                     continue;
                 }
                 if (stars == 0 && dist > 60) { UnityEngine.Object.Destroy(o.Rig.Root.gameObject); Officers.RemoveAt(k); continue; }
-                Vector3 tgt = player.Car != null ? player.Car.Position : player.Position;
+                Vector3 tgt = OfficerTarget != null ? OfficerTarget(o) : player.Car != null ? player.Car.Position : player.Position;
                 float d = Vector2.Distance(new Vector2(tgt.x, tgt.z), new Vector2(o.Pos.x, o.Pos.z));
                 Vector3 eye = o.Pos + Vector3.up * 1.5f, aimAt = new Vector3(tgt.x, player.Car != null ? 0.9f : player.Position.y + 1.2f, tgt.z);
                 bool los = d < 70 && city.Raycast(eye.x, eye.y, eye.z, aimAt.x, aimAt.y, aimAt.z) >= 0.999f;
@@ -440,13 +442,13 @@ namespace NeonHarbor.Runtime
                 case HitKind.Officer: HurtOfficer(hit.Officer, spec.Damage, true); HitMarker = 0.18f; break;
                 case HitKind.Car:
                     DamageCar(hit.Car, spec.Damage * 0.7f, true); HitMarker = 0.12f; Sparks(end);
-                    if (hit.Car.Spec.Type == CarType.Police) Heat?.Invoke(1, "경찰차 사격");
+                    if (hit.Car.Spec.Type == CarType.Police) Heat?.Invoke(1, "경찰차 사격", true);
                     break;
                 case HitKind.None: break;
                 default: Sparks(end); break;
             }
             ScarePeds(player.Position, 45);
-            if (gunfireHeatCooldown <= 0 && CopNearby(55)) { Heat?.Invoke(1, "총기 사용"); gunfireHeatCooldown = 6; }
+            if (gunfireHeatCooldown <= 0) { Heat?.Invoke(1, "총기 사용", false); gunfireHeatCooldown = 6; }
         }
 
         private void Sparks(Vector3 at) { for (int k = 0; k < 4; k++) Emit(FxSpark, at, new Vector3(R(-2, 2), R(1, 3), R(-2, 2)), 0.3f, 0.1f); }
@@ -471,9 +473,9 @@ namespace NeonHarbor.Runtime
             if (target != null)
             {
                 HitMarker = 0.15f; target.Health -= dmg;
-                if (target.Health <= 0) { world.Knock(target, f.x * 3, f.z * 3, false); Heat?.Invoke(0.5f, "폭행"); }
-                else { target.Mode = Pedestrian.State.Flee; target.Timer = 6; target.Threat = player.Position; target.Pos += f * 0.4f; Heat?.Invoke(0.25f, "폭행"); }
-                if (CopNearby(30)) Heat?.Invoke(1, "경찰 앞에서 폭행");
+                if (target.Health <= 0) { world.Knock(target, f.x * 3, f.z * 3, false); Heat?.Invoke(0.5f, "폭행", false); }
+                else { target.Mode = Pedestrian.State.Flee; target.Timer = 6; target.Threat = player.Position; target.Pos += f * 0.4f; Heat?.Invoke(0.25f, "폭행", false); }
+                if (CopNearby(30)) Heat?.Invoke(1, "경찰 앞에서 폭행", false);
             }
             else if (officer != null) { HitMarker = 0.15f; HurtOfficer(officer, dmg, true); }
         }

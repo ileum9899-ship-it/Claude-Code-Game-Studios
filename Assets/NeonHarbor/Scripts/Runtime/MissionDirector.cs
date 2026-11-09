@@ -61,6 +61,15 @@ namespace NeonHarbor.Runtime
             }
         }
 
+        /// <summary>A light-beam marker for a service location (beam height scaled by <paramref name="heightScale"/>).</summary>
+        public Transform Marker(Color c, Vector3 at, float widthScale, float heightScale)
+        {
+            var t = MakeBeam(c, at);
+            t.GetChild(0).localScale = new Vector3(widthScale, heightScale, widthScale);
+            t.GetChild(1).localScale = new Vector3(widthScale, 1, widthScale);
+            return t;
+        }
+
         private Transform MakeBeam(Color c, Vector3 at)
         {
             var t = new GameObject("Beam").transform; t.SetParent(root, false); t.position = at;

@@ -217,6 +217,18 @@ namespace NeonHarbor.Core
             return path;
         }
 
+        /// <summary>
+        /// GPS route between two world points: start, the intersections of the shortest road path, end.
+        /// </summary>
+        public List<Vec2> Route(Vec2 from, Vec2 to)
+        {
+            var nodes = Path(NearestNode(from.X, from.Y), NearestNode(to.X, to.Y));
+            var pts = new List<Vec2>(nodes.Count + 2) { from };
+            foreach (var n in nodes) pts.Add(NodePos(n.Item1, n.Item2));
+            pts.Add(to);
+            return pts;
+        }
+
         /// <summary>True on asphalt (inside a road corridor or an intersection).</summary>
         public bool OnRoad(float x, float z)
         {

@@ -55,6 +55,7 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 #cross.aim i:nth-child(1) { transform: translateY(4px); } #cross.aim i:nth-child(2) { transform: translateY(-4px); }
 #cross.aim i:nth-child(3) { transform: translateX(4px); } #cross.aim i:nth-child(4) { transform: translateX(-4px); }
 #cross.hit i { background: var(--danger); }
+#fadeov { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: #000; opacity: 0; }
 #hurt { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(190,10,20,0.55) 100%); }
 
 #mission { top: calc(16px + env(safe-area-inset-top, 0px)); left: max(18px, env(safe-area-inset-left, 0px)); width: min(340px, calc(100vw - 230px)); padding: 10px 14px; background: var(--shade); border-left: 3px solid var(--cyan); border-radius: 0 8px 8px 0; backdrop-filter: blur(4px); }
@@ -86,6 +87,28 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 #play { font-family: var(--f-display); font-size: 24px; padding: 12px 40px; border: 0; border-radius: 6px; color: #120814; background: linear-gradient(90deg, #ff5ab8, #ffcc33); cursor: pointer; box-shadow: 0 8px 30px rgba(255,90,184,0.35); }
 #play:focus-visible, #helpBtn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 #helpBtn { position: fixed; z-index: 4; top: calc(150px + env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); font: 600 12px var(--f-body); color: var(--ink); background: var(--shade); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+#mapBtn { position: fixed; z-index: 4; top: calc(186px + env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); font: 600 12px var(--f-body); color: var(--ink); background: var(--shade); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+#bigmap { position: fixed; z-index: 6; inset: 0; background: rgba(5,8,14,0.94); }
+#mapcv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.maphead { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+.maphead b { font-family: var(--f-display); font-size: 24px; font-weight: 400; } .maphead span { color: var(--ink-dim); font-size: 13px; flex: 1; min-width: 0; }
+.maphead button, #shopclose { font: 600 13px var(--f-body); color: var(--ink); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+.legend { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 13px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+#shop { position: fixed; z-index: 6; inset: 0; display: grid; place-items: center; background: rgba(5,8,14,0.6); padding: 16px; }
+.shopcard { width: min(440px, 100%); background: rgba(14,18,26,0.96); border: 1px solid rgba(255,138,60,0.5); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+.shopcard h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 30px; color: #ff8a3c; } .shopcard p { margin: 0; color: var(--ink-dim); }
+#shoplist { display: grid; gap: 6px; }
+#shoplist button { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; text-align: left; font: inherit; color: var(--ink); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; padding: 8px 12px; cursor: pointer; }
+#shoplist button:hover { background: rgba(255,138,60,0.18); } #shoplist span { display: grid; min-width: 0; } #shoplist small { color: var(--ink-dim); } #shoplist em { font-style: normal; font-family: var(--f-num); font-size: 22px; color: var(--cash); }
+#wheel { position: fixed; z-index: 5; inset: 0; display: grid; place-items: center; background: radial-gradient(circle, rgba(0,0,0,0.25) 0, rgba(0,0,0,0.65) 70%); pointer-events: none; }
+#wheel .ring { position: relative; width: 300px; height: 300px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); }
+#wheel .slot { position: absolute; width: 110px; padding: 10px; border-radius: 10px; text-align: center; background: rgba(10,14,22,0.8); border: 2px solid rgba(255,255,255,0.15); display: grid; }
+#wheel .slot b { font-size: 16px; } #wheel .slot small { font-family: var(--f-num); font-size: 18px; color: var(--ink-dim); }
+#wheel .s0 { left: 95px; top: -10px; } #wheel .s1 { right: -30px; top: 170px; } #wheel .s2 { left: -30px; top: 170px; }
+#wheel .slot.sel { border-color: var(--heat); background: rgba(255,204,51,0.2); } #wheel .slot.off { opacity: 0.4; }
+#wheel p { position: absolute; top: 130px; width: 100%; text-align: center; font-size: 13px; color: var(--ink-dim); margin: 0; }
+#radio { font-size: 12px; color: var(--cyan); letter-spacing: 0.06em; margin-top: 4px; min-height: 1em; }
 #loading { position: fixed; z-index: 6; inset: 0; display: grid; place-content: center; background: #05070c; font-family: var(--f-display); font-size: 28px; letter-spacing: 0.1em; color: var(--ink-dim); }
 
 #touchUI { display: none; }
@@ -111,18 +134,26 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <div class="hud" id="tr"><div id="clock">17:00</div><div id="money">$500</div><div id="stars"><span></span><span></span><span></span><span></span><span></span></div><div id="weapon"><span id="wname">주먹</span><span id="wammo"></span></div></div>
 <div class="hud" id="cross" hidden><i></i><i></i><i></i><i></i><b></b></div>
 <div id="hurt"></div>
+<div id="fadeov"></div>
 <div class="hud" id="bl"><canvas id="minimap" width="380" height="380" aria-label="미니맵"></canvas><div class="bar" title="체력"><i id="hp" style="width:100%"></i></div><div class="bar armor" id="arbar" title="방탄복" hidden><i id="ar" style="width:0%"></i></div></div>
-<div class="hud" id="br"><div id="speedo" hidden><div id="carname">세단</div><div><span id="gear">N</span><span id="kmh">0</span><small>km/h</small></div><div class="bar" title="차량 내구도"><i id="dmg" style="width:100%"></i></div></div></div>
+<div class="hud" id="br"><div id="speedo" hidden><div id="carname">세단</div><div><span id="gear">N</span><span id="kmh">0</span><small>km/h</small></div><div class="bar" title="차량 내구도"><i id="dmg" style="width:100%"></i></div><div id="radio"></div></div></div>
 <div class="hud" id="mission" hidden><div id="mName">미션</div><div id="mGoal"></div><div class="row"><span id="mTime">0:00</span><span id="mReward"></span></div></div>
 <div class="hud" id="toasts" aria-live="polite"></div>
 <div class="hud" id="prompt" hidden></div>
 <div class="big" id="big"><div id="bigT"></div><div id="bigS"></div></div>
 <button id="helpBtn" title="조작법">조작법</button>
+<button id="mapBtn" title="지도 (M)">지도</button>
+<section id="bigmap" hidden aria-label="도시 지도"><canvas id="mapcv"></canvas>
+  <div class="maphead"><b>네온 하버 지도</b><span>클릭: 웨이포인트 설정 · 다시 클릭: 해제 · M / Esc: 닫기</span><button id="mapclose">닫기</button></div>
+  <div class="legend"><span style="--c:#ff5a6a">H 병원</span><span style="--c:#4b8cff">P 경찰서</span><span style="--c:#ff8a3c">G 총포사</span><span style="--c:#3cffc8">S 스프레이 정비소</span><span style="--c:#ffc23a">! 미션</span><span style="--c:#c86bff">W 웨이포인트</span></div>
+</section>
+<section id="shop" hidden aria-label="총포사"><div class="shopcard"><h2>총포사</h2><p>보유 자금 <b id="shopmoney">$0</b></p><div id="shoplist"></div><button id="shopclose">나가기 (Esc)</button></div></section>
+<section id="wheel" hidden aria-label="무기 선택"><div class="ring"><div data-slot="0" class="slot s0"><b>주먹</b><small></small></div><div data-slot="1" class="slot s1"><b>권총</b><small></small></div><div data-slot="2" class="slot s2"><b>기관단총</b><small></small></div><p>마우스로 고르고 Tab을 놓으세요</p></div></section>
 <div id="joy" hidden><div id="knob"></div></div>
 <div id="touchUI" aria-label="터치 조작">
   <button data-key="Fire" class="fire">사격</button><button data-key="WeaponNext">무기</button>
   <button data-key="KeyF">타기</button><button data-key="Space">점프<br>핸드브</button>
-  <button data-key="KeyH">경적</button><button data-key="ShiftLeft">달리기</button>
+  <button data-key="KeyH">경적</button><button data-key="RadioNext">라디오</button><button data-key="ShiftLeft">달리기</button>
 </div>
 
 <section id="intro">
@@ -135,8 +166,11 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
       <tr><td>Shift · Space</td><td>달리기 · 점프 / 핸드브레이크(드리프트)</td></tr>
       <tr><td>F</td><td>차량 타기·내리기 (운전 중인 차는 탈취)</td></tr>
       <tr><td>좌클릭 · 우클릭</td><td>사격·주먹 · 조준 (1·2·3 / Q 무기 교체, R 재장전)</td></tr>
+      <tr><td>Tab (누르고 있기)</td><td>무기 휠 (시간이 느려집니다)</td></tr>
+      <tr><td>M · , .</td><td>지도·웨이포인트 · 라디오 채널</td></tr>
       <tr><td>H · T · 휠</td><td>경적 · 시간 빨리감기 · 카메라 거리</td></tr>
       <tr><td>노란 빛기둥</td><td>미션: 택배 배달, 스트리트 레이스, 추격 따돌리기</td></tr>
+      <tr><td>G · S · H · P</td><td>총포사 · 스프레이 정비소(수배 해제) · 병원 · 경찰서</td></tr>
       <tr><td>휴대폰</td><td>왼쪽 엄지 조이스틱, 오른쪽 드래그로 카메라</td></tr>
     </table>
     <button id="play">도시로 나가기</button>

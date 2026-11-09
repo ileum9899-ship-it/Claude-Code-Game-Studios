@@ -23,12 +23,14 @@ namespace NeonHarbor.Runtime
         public DayNightCycle Day { get; private set; }
         public CameraRig Camera { get; private set; }
         public CombatDirector Combat { get; private set; }
+        public OpenWorld Services { get; private set; }
 
         private HarborHud hud;
         private HarborAudio sound;
         private PostEffects post;
         private Vector3 spawn;
-        private float time, deadTimer = -1;
+        private float time, deadTimer = -1, fade;
+        private bool arrested;
         private string shotPath; private int shotFrame = -1;
 
         private void Awake()
@@ -55,6 +57,9 @@ namespace NeonHarbor.Runtime
             post = cam.gameObject.AddComponent<PostEffects>();
             Camera = new CameraRig(cam, City); Camera.Snap(spawn);
             Combat = new CombatDirector(Config, City, Materials, World, Player, Camera, cam, dynamicRoot, spawn);
+            Services = new OpenWorld(Config, City, Materials, World, Combat, Player, Wanted, Missions);
+            World.PoliceTarget = v => Services.PoliceTarget(v);
+            Combat.OfficerTarget = o => Services.PoliceTarget(o);
             sound = gameObject.AddComponent<HarborAudio>();
             hud = gameObject.AddComponent<HarborHud>(); hud.Init(this);
             Wire();
@@ -64,23 +69,29 @@ namespace NeonHarbor.Runtime
         private void Wire()
         {
             Color warn = new Color(1f, 0.8f, 0.2f), good = new Color(0.5f, 0.9f, 0.56f), bad = new Color(1f, 0.3f, 0.37f);
-            World.PedHitByPlayer += () => Wanted.AddHeat(Config.HeatPedHit, "보행자 사고");
-            World.CopRammed += _ => Wanted.AddHeat(Config.HeatCopHit, "경찰차 충돌");
+            World.PedHitByPlayer += () => Services.Crime(Config.HeatPedHit, "보행자 사고");
+            World.CopRammed += _ => Services.Crime(Config.HeatCopHit, "경찰차 충돌", true);
             World.Crash += (v, player) => { if (player) { Camera.Shake = Mathf.Max(Camera.Shake, v); sound.Crash(v); } };
             World.Honk += _ => sound.Horn();
-            Player.Carjacked += police => Wanted.AddHeat(police ? 2 : Config.HeatCarjack, police ? "경찰차 탈취" : "차량 탈취");
+            Player.Carjacked += police => Services.Crime(police ? 2 : Config.HeatCarjack, police ? "경찰차 탈취" : "차량 탈취", police);
             Player.CarImpact += v => { Camera.Shake = Mathf.Max(Camera.Shake, v); sound.Crash(v); };
             Player.HornPressed += () => sound.Horn();
             Player.KnockedDown += () => { Camera.Shake = 0.6f; sound.Crash(0.6f); };
             Player.Toast += t => hud.Toast(t);
             Wanted.StarsRaised += (s, why) => { sound.Star(); hud.Toast($"수배 레벨 {new string('★', s)} · {why}", warn); };
             Wanted.Evaded += () => { sound.Win(); hud.Toast("경찰을 따돌렸습니다", good); Missions.NotifyEvaded(); };
-            Wanted.Busted += () => Die("체포됨", $"벌금 -${Mathf.RoundToInt(Player.Money * Config.BustFine):N0}", Config.BustFine, 0);
+            Wanted.Busted += () => { arrested = true; Die("체포됨", $"벌금 -${Mathf.RoundToInt(Player.Money * Config.BustFine):N0} · 경찰서에서 풀려났습니다", Config.BustFine, 0); };
+            Wanted.WitnessReported += why => hud.Toast("목격자가 신고했습니다 · " + why, warn);
             Missions.Banner += (t, s, ok) => { hud.Banner(t, s, ok ? good : bad); if (ok) sound.Win(); else sound.Fail(); };
             Missions.Toast += t => hud.Toast(t);
             Missions.Paid += v => { Player.Money += v; sound.Cash(); };
             Missions.Checkpoint += () => sound.Cash();
-            Combat.Heat += (amount, why) => Wanted.AddHeat(amount, why);
+            Combat.Heat += (amount, why, police) => Services.Crime(amount, why, police);
+            Services.Toast += t => hud.Toast(t);
+            Services.Banner += (t, s) => hud.Banner(t, s, good);
+            Services.Purchased += () => sound.Cash();
+            Services.RadioChanged += s => sound.SetStation(s);
+            Services.Fade += t => fade = t;
             Combat.Toast += t => hud.Toast(t, good);
             Combat.PlayerHurt += k => hud.Hurt(k);
             Combat.Shot += smg => sound.Shot(smg);
@@ -111,23 +122,27 @@ namespace NeonHarbor.Runtime
 
         private void Update()
         {
+            bool paused = Services.TickInput(Time.unscaledDeltaTime, deadTimer < 0 && !hud.ShowIntro);
+            if (fade > 0) { fade -= Time.unscaledDeltaTime; post.Flash = new Color(0, 0, 0, Mathf.Clamp01(fade)); if (fade <= 0) post.Flash = Color.clear; }
+            if (paused) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f); time += dt;
-            if (Input.GetKeyDown(KeyCode.Escape)) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (Input.GetMouseButtonDown(0) && !hud.ShowIntro) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+            if (Input.GetKeyDown(KeyCode.Escape) && Services.Current == OpenWorld.Mode.None) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
+            if (Input.GetMouseButtonDown(0) && !hud.ShowIntro && Services.Current == OpenWorld.Mode.None) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
             if (Input.GetKeyDown(KeyCode.T)) Day.SetTime(Day.T + 0.08f);
 
             if (deadTimer >= 0)
             {
                 deadTimer -= dt; post.Flash = new Color(0.25f, 0.02f, 0.02f, Mathf.Clamp01(deadTimer / 3f) * 0.6f);
-                if (deadTimer < 0) { Player.Respawn(spawn); Wanted.Clear(); foreach (var v in World.Vehicles.ToArray()) if (v.Spec.Type == CarType.Police) World.Remove(v); Camera.Snap(spawn); Combat.Reset(); post.Flash = Color.clear; }
+                if (deadTimer < 0) { var rp = Services.RespawnPoint(arrested); Player.Respawn(rp); Wanted.Clear(); foreach (var v in World.Vehicles.ToArray()) if (v.Spec.Type == CarType.Police) World.Remove(v); Camera.Snap(rp); Combat.Reset(); post.Flash = Color.clear; }
             }
             else if (!hud.ShowIntro) Player.Tick(dt, Camera.Yaw);
 
             Combat.Tick(dt, time, Wanted.Stars, deadTimer < 0 && !hud.ShowIntro);
             Camera.Aim = Combat.Aiming && Player.Car == null;
             float nearestCop = Mathf.Min(World.Tick(dt, time, Wanted.Stars, Wanted.DesiredCops), Combat.NearestOfficer());
-            Wanted.Tick(dt, nearestCop, Player.Car != null ? Player.Car.Speed : new Vector2(Player.Velocity.x, Player.Velocity.z).magnitude);
-            if (Player.Health <= 0 && deadTimer < 0) Die("의식을 잃었습니다", "병원비 -$200", 0, 200);
+            Services.Tick(dt);
+            Wanted.Tick(dt, Services.Seen, new Vec2(Player.Position.x, Player.Position.z), Player.Car != null ? Player.Car.Speed : new Vector2(Player.Velocity.x, Player.Velocity.z).magnitude, nearestCop);
+            if (Player.Health <= 0 && deadTimer < 0) { arrested = false; Die("의식을 잃었습니다", $"병원비 -${Config.HospitalBill} · 병원에서 깨어났습니다", 0, Config.HospitalBill); }
             Missions.Tick(dt, time, Player, Wanted.Stars);
             Day.Tick(dt, Player.Position);
             Materials.Water.SetTextureOffset("_BumpMap", new Vector2(time * 0.021f, time * 0.013f));
@@ -139,7 +154,8 @@ namespace NeonHarbor.Runtime
 
         private void LateUpdate()
         {
-            Camera.Tick(Mathf.Min(Time.deltaTime, 0.05f), Player, !hud.ShowIntro && (Cursor.lockState == CursorLockMode.Locked || Input.GetMouseButton(1)));
+            if (Services.Current == OpenWorld.Mode.Map || Services.Current == OpenWorld.Mode.Shop) return;
+            Camera.Tick(Mathf.Min(Time.unscaledDeltaTime, 0.05f), Player, !hud.ShowIntro && Services.Current != OpenWorld.Mode.Wheel && (Cursor.lockState == CursorLockMode.Locked || Input.GetMouseButton(1)));
         }
 
         private void ReadCommandLine()

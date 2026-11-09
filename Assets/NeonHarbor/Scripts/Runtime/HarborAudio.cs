@@ -11,6 +11,11 @@ namespace NeonHarbor.Runtime
     public sealed class HarborAudio : MonoBehaviour
     {
         private volatile float engineHz, engineGain, cutoff = 600, skidGain, sirenGain, sirenHz = 950;
+        private volatile int station = -1;
+        // radio sequencer state (audio thread only)
+        private double radioClock; private int radioStep = -1; private float kickEnv, snareEnv, hatEnv, bassEnv, leadEnv, padEnv, bassHz, leadHz, kickPh, bassPh, leadPh; private readonly float[] padHz = new float[3]; private readonly float[] padPh = new float[3]; private float leadLp;
+        private static readonly int[] Roots = { 57, 53, 48, 55 }; // A minor: i–VI–III–VII
+        private static readonly float[] Bpm = { 108, 88, 70 };
         private double phaseA, phaseB, sirenPhase; private float lp, noiseLp; private int rate;
         private System.Random rng = new System.Random(1);
         private AudioSource oneShots;
@@ -45,6 +50,57 @@ namespace NeonHarbor.Runtime
             sirenGain = sirenLevel * 0.09f; sirenHz = Mathf.Sin(Time.time * 3.2f) > 0 ? 1350 : 950;
         }
 
+        /// <summary>Radio station, -1 = off (set from the main thread).</summary>
+        public void SetStation(int s) { station = s; }
+
+        private static float Mtof(int m) { return 440f * Mathf.Pow(2f, (m - 69) / 12f); }
+
+        // one sixteenth-note step of the current station's pattern
+        private void RadioStep(int s, int step)
+        {
+            int bar = (step / 16) % 4, s16 = step % 16, root = Roots[bar];
+            if (s == 0)
+            {
+                bassHz = Mtof(root - 12 + (s16 % 2 == 1 ? 12 : 0)); bassEnv = 1;
+                if (s16 % 2 == 0) { leadHz = Mtof(root + 12 + new[] { 0, 3, 7, 12, 7, 3, 0, 7 }[(s16 / 2) % 8]); leadEnv = 1; }
+                if (s16 % 4 == 0) kickEnv = 1; if (s16 == 4 || s16 == 12) snareEnv = 1; if (s16 % 2 == 1) hatEnv = 1;
+                if (s16 == 0) { padHz[0] = Mtof(root + 12); padHz[1] = Mtof(root + 15); padHz[2] = Mtof(root + 19); padEnv = 1; }
+            }
+            else if (s == 1)
+            {
+                if (s16 == 0 || s16 == 7 || s16 == 10) kickEnv = 1; if (s16 == 4 || s16 == 12) snareEnv = 1; if (s16 % 2 == 0) hatEnv = 0.8f;
+                if (s16 == 0 || s16 == 10) { bassHz = Mtof(root - 24); bassEnv = 1; }
+                if (s16 == 2 || s16 == 6 || s16 == 14) { leadHz = Mtof(root + new[] { 3, 7, 10 }[(s16 / 4) % 3]); leadEnv = 0.8f; }
+            }
+            else
+            {
+                if (s16 == 0) { padHz[0] = Mtof(root); padHz[1] = Mtof(root + 7); padHz[2] = Mtof(root + 15); padEnv = 1; }
+                if (s16 == 8 && (step * 7919 % 10) < 6) { leadHz = Mtof(root + 24 + new[] { 0, 3, 7, 10 }[(step / 16) % 4]); leadEnv = 0.7f; }
+            }
+        }
+
+        private float RadioSample(float noise)
+        {
+            int s = station;
+            if (s < 0) { radioStep = -1; return 0; }
+            double sixteenth = 60.0 / Bpm[s] / 4.0;
+            radioClock += 1.0 / rate;
+            if (radioStep < 0) { radioStep = 0; radioClock = 0; RadioStep(s, 0); }
+            while (radioClock >= sixteenth) { radioClock -= sixteenth; radioStep++; RadioStep(s, radioStep); }
+            float dtS = 1f / rate, o = 0;
+            // kick: falling sine
+            kickPh += (40 + 100 * kickEnv) * dtS; o += Mathf.Sin(kickPh * 2 * Mathf.PI) * kickEnv * 0.55f; kickEnv *= 1 - 12 * dtS;
+            o += noise * snareEnv * 0.25f; snareEnv *= 1 - 18 * dtS;
+            o += noise * hatEnv * 0.06f; hatEnv *= 1 - 60 * dtS;
+            bassPh += bassHz * dtS; float saw = (bassPh % 1f) * 2 - 1; o += (s == 1 ? Mathf.Sin(bassPh * 2 * Mathf.PI) * 0.35f : saw * 0.1f) * bassEnv; bassEnv *= 1 - (s == 1 ? 3 : 9) * dtS;
+            leadPh += leadHz * dtS; float sq = (leadPh % 1f) < 0.5f ? 1 : -1; leadLp += 0.15f * (sq - leadLp); o += (s == 2 ? Mathf.Sin(leadPh * 2 * Mathf.PI) : leadLp) * leadEnv * 0.05f; leadEnv *= 1 - (s == 2 ? 1.2f : 6) * dtS;
+            for (int k = 0; k < 3; k++) { padPh[k] += padHz[k] * dtS; o += Mathf.Sin(padPh[k] * 2 * Mathf.PI) * padEnv * 0.03f; }
+            padEnv *= 1 - (s == 2 ? 0.25f : 0.8f) * dtS;
+            if (kickPh > 1000) kickPh -= 1000; if (bassPh > 1000) bassPh -= 1000; if (leadPh > 1000) leadPh -= 1000;
+            for (int k = 0; k < 3; k++) if (padPh[k] > 1000) padPh[k] -= 1000;
+            return o * 0.55f;
+        }
+
         public void Horn() { oneShots.PlayOneShot(horn); }
         public void Crash(float v) { oneShots.PlayOneShot(crash, Mathf.Clamp01(v)); }
         public void Cash() { oneShots.PlayOneShot(cash); }
@@ -77,7 +133,7 @@ namespace NeonHarbor.Runtime
                 float saw = (float)(phaseA % 1.0) * 2 - 1, sq = (phaseB % 1.0) < 0.5 ? 0.35f : -0.35f;
                 lp += a * ((saw + sq) - lp);
                 float noise = (float)rng.NextDouble() * 2 - 1; noiseLp += 0.6f * (noise - noiseLp);
-                float s = lp * engineGain + (noise - noiseLp) * skidGain + (float)System.Math.Sin(sirenPhase * 2 * System.Math.PI) * sirenGain;
+                float s = lp * engineGain + (noise - noiseLp) * skidGain + (float)System.Math.Sin(sirenPhase * 2 * System.Math.PI) * sirenGain + RadioSample(noise);
                 for (int c = 0; c < channels; c++) data[i + c] = s;
             }
         }

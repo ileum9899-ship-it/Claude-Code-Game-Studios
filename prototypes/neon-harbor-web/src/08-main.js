@@ -94,6 +94,7 @@ const HUD = (() => {
   }
   let hurtT = 0;
   return {
+    baseMap: base,
     hurt(k) { hurtT = Math.min(1, hurtT + k); },
     toast(msg, kind = "") {
       const d = document.createElement("div"); d.className = "toast " + kind; d.textContent = msg; toasts.appendChild(d);
@@ -119,7 +120,7 @@ const HUD = (() => {
       $("money").textContent = "$" + Math.floor(PLAYER.money).toLocaleString();
       const hours = Math.floor(DAY.t * 24), mins = Math.floor((DAY.t * 24 * 60) % 60);
       $("clock").textContent = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-      const starEls = $("stars").children, flash = PLAYER.evade > 0 && Math.floor(t * 3) % 2 === 0;
+      const starEls = $("stars").children, flash = WANTED.st.searching && Math.floor(t * 3) % 2 === 0;
       for (let k = 0; k < 5; k++) starEls[k].className = k < PLAYER.stars ? (flash ? "on dim" : "on") : "";
       $("hp").style.width = clamp(PLAYER.health, 0, 100) + "%";
       $("ar").style.width = clamp(PLAYER.armor, 0, 100) + "%"; $("arbar").hidden = PLAYER.armor <= 0;
@@ -136,6 +137,7 @@ const HUD = (() => {
         $("gear").textContent = car.vel.dot(forwardOf(car)) < -0.5 ? "R" : kmh < 2 ? "N" : String(1 + Math.min(5, Math.floor(kmh / 40)));
         $("dmg").style.width = clamp(car.health, 0, 100) + "%";
         $("carname").textContent = CAR_NAMES[car.type];
+        $("radio").textContent = RADIO.station >= 0 ? "♪ " + RADIO.STATIONS[RADIO.station].name : "라디오 꺼짐 ( , . )";
       }
       // context prompt
       let prompt = "";
@@ -151,6 +153,22 @@ const HUD = (() => {
       g.translate(R, R); g.rotate(rot);
       g.drawImage(base, -(PLAYER.pos.x + O) * S, -(PLAYER.pos.z + O) * S);
       g.restore();
+      // police search area
+      if (PLAYER.stars > 0 && WANTED.st.searching) {
+        const lk = WANTED.st.lastKnown, dx = (lk.x - PLAYER.pos.x) * S, dz = (lk.z - PLAYER.pos.z) * S, c = Math.cos(rot), sn = Math.sin(rot);
+        g.save(); g.beginPath(); g.arc(R, R, R - 2, 0, TAU); g.clip();
+        g.fillStyle = Math.floor(t * 2) % 2 ? "rgba(255,60,80,0.22)" : "rgba(60,110,255,0.22)"; g.beginPath(); g.arc(R + dx * c - dz * sn, R + dx * sn + dz * c, WANTED.radius() * S, 0, TAU); g.fill(); g.restore();
+      }
+      // GPS route
+      if (GPS.route.length > 1) {
+        const c = Math.cos(rot), sn = Math.sin(rot);
+        g.save(); g.beginPath(); g.arc(R, R, R - 2, 0, TAU); g.clip();
+        g.strokeStyle = GPS.color; g.lineWidth = 5; g.lineJoin = "round"; g.beginPath();
+        GPS.route.forEach((p, i) => { const dx = (p.x - PLAYER.pos.x) * S, dz = (p.z - PLAYER.pos.z) * S, x = R + dx * c - dz * sn, y = R + dx * sn + dz * c; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+        g.stroke(); g.restore();
+      }
+      for (const pl of Object.values(PLACES)) blip(pl.x, pl.z, pl.color, 5, PLAYER.pos.x, PLAYER.pos.z, rot, R, false);
+      if (GPS.waypoint) blip(GPS.waypoint.x, GPS.waypoint.z, "#c86bff", 6, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
       for (const j of MISSIONS.jobs) if (!MISSIONS.active) blip(j.x, j.z, "#ffc23a", 5, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
       if (MISSIONS.target) blip(MISSIONS.target.position.x, MISSIONS.target.position.z, "#3cd4ff", 6, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
       for (const v of VEHICLES) if (v.type === "police" && v.ai && v.ai.mode === "police") blip(v.pos.x, v.pos.z, Math.floor(t * 4) % 2 ? "#ff3b3b" : "#3b6bff", 4.5, PLAYER.pos.x, PLAYER.pos.z, rot, R, true);
@@ -170,25 +188,27 @@ const HUD = (() => {
 
 // ---------------------------------------------------------------- game flow
 const GAME = (() => {
-  let state = "play", timer = 0;
+  let state = "play", timer = 0, where = "hospital", fadeT = 0;
   function reset(where, title, sub, kind) {
     state = "dead"; timer = 3.2; HUD.big(title, sub, kind);
     MISSIONS.cancel();
   }
   return {
     get state() { return state; },
-    busted() { if (state !== "play") return; const fine = Math.round(PLAYER.money * CFG.wanted.bustFine); PLAYER.money -= fine; reset("station", "체포됨", `벌금 -$${fine.toLocaleString()}`, "bad"); AUDIO.fail(); },
-    wasted() { if (state !== "play") return; PLAYER.money = Math.max(0, PLAYER.money - 200); reset("hospital", "의식을 잃었습니다", "병원비 -$200", "bad"); AUDIO.fail(); },
+    busted() { if (state !== "play") return; const fine = Math.round(PLAYER.money * CFG.wanted.bustFine); PLAYER.money -= fine; where = "police"; reset("police", "체포됨", `벌금 -$${fine.toLocaleString()} · 경찰서에서 풀려났습니다`, "bad"); AUDIO.fail(); },
+    wasted() { if (state !== "play") return; PLAYER.money = Math.max(0, PLAYER.money - CFG.gta.hospitalBill); where = "hospital"; reset("hospital", "의식을 잃었습니다", `병원비 -$${CFG.gta.hospitalBill} · 병원에서 깨어났습니다`, "bad"); AUDIO.fail(); },
+    fade(t) { fadeT = t; },
     update(dt) {
+      if (fadeT > 0) { fadeT -= dt; $("fadeov").style.opacity = clamp(fadeT, 0, 1).toFixed(2); }
       if (state === "play") { if (PLAYER.health <= 0) this.wasted(); return; }
       timer -= dt; grade.uniforms.flash.value.setRGB(0.25, 0.02, 0.02).multiplyScalar(clamp(timer / 3, 0, 1));
       if (timer <= 0) {
         if (PLAYER.car) { const c = PLAYER.car; if (c.driverMesh) { c.body.remove(c.driverMesh.root); c.driverMesh = null; } c.ai = { mode: "parked" }; PLAYER.car = null; }
         PLAYER.rig.root.visible = true; PLAYER.rig.root.rotation.set(0, 0, 0); PLAYER.downTimer = 0;
-        PLAYER.pos.set(SPAWN.x, 0.18, SPAWN.z); PLAYER.vel.set(0, 0, 0); PLAYER.health = 100; PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.bust = 0;
+        const rp = UI.respawnPoint(where); PLAYER.pos.copy(rp); PLAYER.vel.set(0, 0, 0); PLAYER.health = 100; WANTED.clear();
         for (const v of [...VEHICLES]) if (v.type === "police") removeCar(v);
         COMBAT.reset();
-        grade.uniforms.flash.value.setRGB(0, 0, 0); state = "play"; CAMERA.pos.set(SPAWN.x, 5, SPAWN.z + 8);
+        grade.uniforms.flash.value.setRGB(0, 0, 0); state = "play"; CAMERA.pos.set(rp.x, 5, rp.z + 8);
       }
     },
   };
@@ -237,7 +257,11 @@ function resize() {
 addEventListener("resize", resize);
 let clockT = 0, lastFrame = performance.now(), started = false;
 function frame(now) {
-  const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now; clockT += dt;
+  const rawDt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+  if ($("intro").hidden) UI.update(rawDt);
+  if (UI.paused) { UI.redrawMap(); HUD.update(rawDt, clockT, 1e9); INPUT.pressed.clear(); composer.render(rawDt); requestAnimationFrame(frame); return; }
+  const dt = rawDt * UI.timeScale; clockT += dt;
+  GPS.update(rawDt);
   if (GAME.state === "play") updatePlayer(dt);
   GAME.update(dt);
   for (const v of VEHICLES) {
@@ -275,7 +299,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }

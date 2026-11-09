@@ -103,6 +103,14 @@ namespace NeonHarbor.Core
         public float BustSeconds = 2.5f;
         /// <summary>Fraction of money lost when arrested.</summary>
         public float BustFine = 0.1f;
+        /// <summary>Seconds before a bystander's call raises the wanted level.</summary>
+        public float WitnessDelay = 4f;
+        /// <summary>Distance (m) within which a bystander witnesses a crime.</summary>
+        public float WitnessRadius = 30f;
+        /// <summary>Police search radius (m) at zero stars, plus per star.</summary>
+        public float SearchRadiusBase = 60f, SearchRadiusPerStar = 25f;
+        /// <summary>How far police in cars / on foot can see the player (m).</summary>
+        public float CopSightCar = 90f, CopSightFoot = 70f;
         /// <summary>Police top-speed multiplier.</summary>
         public float CopSpeed = 1.25f;
         /// <summary>Police cars per star.</summary>
@@ -128,6 +136,16 @@ namespace NeonHarbor.Core
         /// <summary>Starting money ($).</summary>
         public int StartMoney = 500;
 
+        // shops & health
+        /// <summary>Gun shop prices ($): pistol, SMG, pistol ammo (2 mags), SMG ammo (2 mags), armour.</summary>
+        public int PricePistol = 400, PriceSmg = 1200, PricePistolAmmo = 60, PriceSmgAmmo = 120, PriceArmor = 300;
+        /// <summary>Spray garage: repaint + repair + lose the cops if unseen ($).</summary>
+        public int SprayCost = 100;
+        /// <summary>Hospital bill ($) and health regenerates up to this value.</summary>
+        public int HospitalBill = 200;
+        /// <summary>Health regenerates to this level after <see cref="RegenDelay"/> s without damage, at <see cref="RegenRate"/> per second.</summary>
+        public float RegenCap = 50f, RegenDelay = 5f, RegenRate = 3f;
+
         /// <summary>Real seconds per in-game day.</summary>
         public float DayLength = 720f;
     }
@@ -145,6 +163,8 @@ namespace NeonHarbor.Core
         public float car_accel, car_reverse_accel, car_brake, car_max_speed, car_max_reverse, car_drag, car_rolling, car_grip, car_handbrake_grip, car_steer_max, car_steer_speed, car_wheelbase;
         public int traffic_count, parked_count; public float traffic_cruise, traffic_turn_speed, follow_gap, light_cycle, light_yellow;
         public int ped_count; public float ped_radius, ped_speed, ped_flee_speed, ped_hit_speed;
+        public float witness_delay, witness_radius, search_radius_base, search_radius_per_star, cop_sight_car, cop_sight_foot;
+        public int price_pistol, price_smg, price_pistol_ammo, price_smg_ammo, price_armor, spray_cost, hospital_bill; public float regen_cap, regen_delay, regen_rate;
         public float heat_ped_hit, heat_carjack, heat_cop_hit; public int max_stars; public float evade_radius, evade_seconds, bust_radius, bust_seconds, bust_fine, cop_speed; public int cops_per_star, max_cops;
         public int courier_reward_min, courier_reward_max, race_reward, evade_reward; public float time_per_meter, time_base; public int cash_pickups, cash_min, cash_max, start_money;
         public float day_length;
@@ -168,6 +188,10 @@ namespace NeonHarbor.Core
             I(ref c.CourierRewardMin, courier_reward_min); I(ref c.CourierRewardMax, courier_reward_max); I(ref c.RaceReward, race_reward); I(ref c.EvadeReward, evade_reward);
             F(ref c.TimePerMeter, time_per_meter); F(ref c.TimeBase, time_base); I(ref c.CashPickups, cash_pickups); I(ref c.CashMin, cash_min); I(ref c.CashMax, cash_max);
             I(ref c.StartMoney, start_money); F(ref c.DayLength, day_length);
+            F(ref c.WitnessDelay, witness_delay); F(ref c.WitnessRadius, witness_radius); F(ref c.SearchRadiusBase, search_radius_base); F(ref c.SearchRadiusPerStar, search_radius_per_star);
+            F(ref c.CopSightCar, cop_sight_car); F(ref c.CopSightFoot, cop_sight_foot);
+            I(ref c.PricePistol, price_pistol); I(ref c.PriceSmg, price_smg); I(ref c.PricePistolAmmo, price_pistol_ammo); I(ref c.PriceSmgAmmo, price_smg_ammo); I(ref c.PriceArmor, price_armor);
+            I(ref c.SprayCost, spray_cost); I(ref c.HospitalBill, hospital_bill); F(ref c.RegenCap, regen_cap); F(ref c.RegenDelay, regen_delay); F(ref c.RegenRate, regen_rate);
             return c;
         }
 

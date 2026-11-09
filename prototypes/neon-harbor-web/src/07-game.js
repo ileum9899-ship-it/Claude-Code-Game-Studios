@@ -161,8 +161,8 @@ function enterCar(car) {
     // carjack: the driver flees on foot
     const blk = CITY.blockAt(car.pos.x + 8, car.pos.z) || CITY.blockAt(car.pos.x, car.pos.z + 8) || CITY.blocks[0];
     const p = spawnPed(blk); p.state = "flee"; p.timer = 6; p.threat = PLAYER.pos.clone();
-    addHeat(CFG.wanted.carjack, "차량 탈취");
-  } else if (car.type === "police") addHeat(2, "경찰차 탈취");
+    WANTED.crime(CFG.wanted.carjack, "차량 탈취");
+  } else if (car.type === "police") WANTED.crime(2, "경찰차 탈취");
   car.ai = null; car.throttle = car.brake = car.steerIn = 0;
   if (!car.driverMesh) addDriver(car);
   // swap the seated driver for the player's look
@@ -250,13 +250,8 @@ function updatePlayer(dt) {
 }
 
 // ---------------------------------------------------------------- wanted level
-function addHeat(n, why) {
-  const before = PLAYER.stars;
-  PLAYER.heat = clamp(PLAYER.heat + n, 0, CFG.wanted.maxStars + 0.99);
-  PLAYER.stars = Math.min(CFG.wanted.maxStars, Math.floor(PLAYER.heat));
-  PLAYER.evade = 0;
-  if (PLAYER.stars > before) { AUDIO.star(); HUD.toast(`수배 레벨 ${"★".repeat(PLAYER.stars)} · ${why}`, "warn"); }
-}
+// direct heat (seen by police); crimes go through WANTED.crime (witnesses, search) in 10-gta.js
+function addHeat(n, why) { WANTED.raise(n, why); }
 function updateWanted(dt) {
   const cops = VEHICLES.filter(v => v.type === "police" && v.ai && v.ai.mode === "police");
   const want = Math.min(CFG.wanted.maxCops, PLAYER.stars * CFG.wanted.copsPerStar);
@@ -264,17 +259,12 @@ function updateWanted(dt) {
   let nearest = 1e9;
   for (const c of cops) nearest = Math.min(nearest, Math.hypot(c.pos.x - PLAYER.pos.x, c.pos.z - PLAYER.pos.z));
   nearest = Math.min(nearest, COMBAT.nearestOfficer());
+  WANTED.update(dt);
   if (PLAYER.stars > 0) {
-    if (nearest > CFG.wanted.evadeRadius) {
-      PLAYER.evade += dt;
-      if (PLAYER.evade > CFG.wanted.evadeSeconds) { PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.evade = 0; HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
-    } else PLAYER.evade = 0;
     const playerSpeed = PLAYER.car ? speedOf(PLAYER.car) : Math.hypot(PLAYER.vel.x, PLAYER.vel.z);
     if (nearest < CFG.wanted.bustRadius && playerSpeed < 2) { PLAYER.bust += dt; if (PLAYER.bust > CFG.wanted.bustSeconds) GAME.busted(); }
     else PLAYER.bust = Math.max(0, PLAYER.bust - dt);
   }
-  // police with no wanted level drive off and despawn when far
-  for (const c of cops) if (PLAYER.stars === 0) { c.ai.mode = "parked"; c.throttle = 0; c.brake = 1; }
   return nearest;
 }
 

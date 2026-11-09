@@ -40,6 +40,9 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 | Right click (hold) | aim over the shoulder | — |
 | `1` `2` `3` / `Q` | fists / pistol / SMG / next weapon | same |
 | `R` | reload | reload |
+| `Tab` (hold) | weapon wheel, time slows to 25 % | — |
+| `M` | full map — click to set / clear a waypoint (game pauses) | same |
+| `,` `.` | — | radio station down / up |
 | `H` | — | horn |
 | `T` | skip time of day forward | same |
 
@@ -58,6 +61,16 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
   with hitscan aiming, tracers, muzzle flashes and hit markers. Guns, ammo, health and
   armour are pickups on the sidewalks. Shot or punched people fall and fade out (no gore).
   Cars take bullet damage, catch fire and explode, hurting everything within 8 m.
+- Wanted level works like the genre's classics: crimes only count if police see them or
+  a bystander phones them in (a few seconds later). Out of police sight the stars flash
+  and a search area appears on the minimap around where you were last seen; get out of
+  it and stay unseen to lose them. Police cars and officers search inside that area.
+- Services: **총포사** (gun shop: pistol, SMG, ammo, armour), **스프레이 정비소** (drive in:
+  repaint, repair and lose the police if none can see you, $100), **병원** (respawn after
+  being knocked out, $200 bill) and **경찰서** (respawn after an arrest, fine).
+- Full-screen map with waypoint and a GPS route on the minimap (yellow to the mission
+  target, purple to your waypoint). Car radio with three procedural stations.
+  Health slowly regenerates to 50 % when you avoid damage for 5 s.
 - At two or more stars, police leave their cars near you and fight on foot; their
   accuracy drops with distance and with how fast you move. Gunfire near police, hurting
   people or officers, shooting police cars and causing explosions all raise the wanted level.
@@ -70,12 +83,12 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 
 | Path | Assembly | What |
 |---|---|---|
-| `Scripts/Core/` | `NeonHarbor.Core` (no engine refs) | City layout + road graph + collision, vehicle model, traffic lights, wanted level, missions, weapons/ammo/armour/hit tests, config DTO, RNG |
+| `Scripts/Core/` | `NeonHarbor.Core` (no engine refs) | City layout + road graph + collision, vehicle model, traffic lights, wanted level, missions, weapons/ammo/armour/hit tests, shop/spray/regen rules, GPS routes, config DTO, RNG |
 | `Scripts/Runtime/` | `NeonHarbor.Runtime` | Game root, city mesh builder, procedural textures/materials, car factory, human rig, AI director, player, camera, HUD, audio, post effects, day/night |
 | `Scripts/Editor/` | `NeonHarbor.Editor` | First-import setup and the **Neon Harbor** menu |
 | `Shaders/` | — | Bloom/tone-map post shader (Built-in), additive glow shader |
 | `Resources/Data/harbor_balance.json` | — | Every tuning value (snake_case) |
-| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 40 NUnit tests for the Core |
+| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 51 NUnit tests for the Core |
 
 ## Tests
 

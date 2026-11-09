@@ -37,11 +37,33 @@ random turn choice (no U-turns), stops for red/yellow before the stop line, foll
 with a gap, stops for people on the road, honks at a player blocking it. A struck
 traffic car becomes a physics wreck.
 
-**Wanted level.** Heat accumulates; stars = ⌊heat⌋ (max 5). Police cars = stars ×
-cops-per-star (max 5), spawned 90–200 m away. They route over the road graph (BFS,
-re-planned each second) and switch to direct pursuit within 32 m. Escape: every cop
-beyond the evade radius for the evade time → stars cleared. Arrest: a cop within the
-bust radius while the player's speed < 2 m/s for the bust time → fine and respawn.
+**Wanted level.** Heat accumulates; stars = ⌊heat⌋ (max 5). A crime counts at once if a
+police unit can see the player (car within `cop_sight_car` m or officer within
+`cop_sight_foot` m, with a clear line of sight) or the crime targets police; otherwise, if
+a pedestrian is within `witness_radius` m, it is phoned in after `witness_delay` s; if
+nobody saw it, it does not count. While seen, the last known position follows the
+player. Unseen, the stars flash and police (cars and officers) drive / run to random
+points inside the search circle (radius `search_radius_base + search_radius_per_star ×
+stars`) around the last known position. Being outside the circle and unseen for
+`evade_seconds` clears the wanted level; being spotted re-centres the circle. Police
+cars = stars × cops-per-star (max 5), spawned 90–200 m away, routing over the road graph
+(BFS, re-planned each second) and switching to direct pursuit within 32 m. Arrest: a cop
+within the bust radius while the player's speed < 2 m/s for the bust time → fine and
+release at the police station.
+
+**Services.** Gun shop (walk into the orange marker; game pauses): pistol $400, SMG
+$1200, pistol ammo ×24 $60, SMG ammo ×60 $120, armour $300 — guns once, ammo only for
+an owned gun, armour only below 100. Spray garage (drive into the teal marker on the
+road): $100, refused while police can see you; repaints, repairs to 100, puts out a fire
+and clears the wanted level. Knocked out → hospital, $200 bill; arrested → police
+station. Health regenerates at 3/s up to 50 after 5 s without damage.
+
+**Map, GPS, wheel, radio.** `M` opens a paused full map; a click sets a waypoint, a
+click near it clears it. The minimap draws the shortest road route (yellow to the
+mission checkpoint, purple to the waypoint), recomputed twice a second. Holding `Tab`
+on foot opens the weapon wheel and slows time to 25 %; releasing selects. Entering a car
+turns on the radio (last or random station); `,` / `.` change station (three
+procedural stations: synthwave 108 BPM, hip-hop 88 BPM, ambient 70 BPM).
 
 **Combat.** Weapons: fists (18 dmg, 1.7 m, 0.42 s), pistol (34 dmg, semi-auto, 12-round
 magazine, 1.3 s reload), SMG (19 dmg, automatic, 30 rounds, 1.8 s reload). Guns are
@@ -101,7 +123,7 @@ impactful: `car_grip` / `car_handbrake_grip` (drift feel), `car_max_speed`,
 
 ## 8. Acceptance Criteria
 
-Automated (`Assets/Tests/EditMode/`, 40 tests): deterministic city, every district
+Automated (`Assets/Tests/EditMode/`, 51 tests): deterministic city, every district
 present, no building on a road, downtown taller than residential, shortest grid path,
 road/ground queries, circle push-out, camera raycast, sidewalk ring; car accelerates
 below top speed, brakes to stop, steering sign, handbrake drift, reverse cap, wall
@@ -109,7 +131,11 @@ bounce, mass vs. top speed; heat → stars and cap, evade, evade reset, arrest o
 stopped, cop count, signals never green both ways, courier/race/timeout/evade flow,
 config defaults, RNG parity with the browser build; fists-only start, semi-auto vs
 automatic, fire rate, auto-reload, empty click, ammo pickups, armour soak, ray–cylinder
-and rotated ray–box hits, officer accuracy, explosion falloff, heat never negative.
+and rotated ray–box hits, officer accuracy, explosion falloff, heat never negative; leaving the search area unseen clears stars,
+hiding inside it does not, being spotted re-centres it, search radius grows with stars,
+unseen crimes don't count and witness calls arrive after the delay, crimes seen by police
+count at once; shop purchases, ammo needs the gun, no-money and full-armour refusals,
+spray refusals and charge, regeneration cap, GPS route along roads.
 
 Visual: city by day and night, driving, police chase, phone layout — browser build
 captures in `production/qa/evidence/neon-harbor-web/`. A Unity capture needs the

@@ -18,6 +18,7 @@ namespace NeonHarbor.Runtime
         private readonly List<(string text, float time, Color color)> toasts = new List<(string, float, Color)>();
         private string bannerTitle, bannerSub; private float bannerTime; private Color bannerColor;
         private float scale = 1, hurt;
+        private Texture2D disc;
 
         /// <summary>Red screen-edge flash when the player is hurt (0..1).</summary>
         public void Hurt(float k) { hurt = Mathf.Min(1, hurt + k); }
@@ -47,6 +48,10 @@ namespace NeonHarbor.Runtime
                 foreach (var b in blk.Buildings) Rect(b.X0, b.Z0, b.X1, b.Z1, blk.Type == BlockType.Downtown ? new Color32(140, 146, 155, 255) : new Color32(123, 128, 136, 255));
             }
             map.SetPixels32(px); map.Apply();
+            disc = new Texture2D(64, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var dp = new Color32[64 * 64];
+            for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) dp[y * 64 + x] = (x - 31.5f) * (x - 31.5f) + (y - 31.5f) * (y - 31.5f) < 31.5f * 31.5f ? new Color32(255, 255, 255, 255) : new Color32(255, 255, 255, 0);
+            disc.SetPixels32(dp); disc.Apply();
         }
 
         /// <summary>Queues a small message.</summary>
@@ -92,12 +97,14 @@ namespace NeonHarbor.Runtime
             var p = game.Player;
 
             if (ShowIntro) { DrawIntro(W); return; }
+            var svc = game.Services;
+            if (svc.Current == OpenWorld.Mode.Map) { DrawFullMap(W); return; }
 
             // top right: clock, money, stars
             int hours = (int)(game.Day.T * 24), mins = (int)(game.Day.T * 24 * 60 % 60);
             Shadowed(new Rect(W - 260, 12, 240, 26), $"{hours:00}:{mins:00}", clock);
             Shadowed(new Rect(W - 360, 34, 340, 48), "$" + p.Money.ToString("N0"), money);
-            bool flash = game.Wanted.EvadeTimer > 0 && Mathf.FloorToInt(Time.time * 3) % 2 == 0;
+            bool flash = game.Wanted.Searching && Mathf.FloorToInt(Time.unscaledTime * 3) % 2 == 0;
             for (int k = 0; k < 5; k++) Shadowed(new Rect(W - 180 + k * 32, 82, 30, 30), "★", k < game.Wanted.Stars && !flash ? starOn : starOff);
             var arms = p.Arsenal;
             string ammo = arms.Spec.Melee ? "" : arms.Reloading ? "재장전…" : $"{arms.Clip} / {arms.Reserve}";
@@ -128,6 +135,7 @@ namespace NeonHarbor.Runtime
                 Shadowed(new Rect(W - 88, RefH - 62, 80, 30), "km/h", unit);
                 Box(new Rect(W - 190, RefH - 24, 170, 5), new Color(0, 0, 0, 0.55f));
                 Box(new Rect(W - 190, RefH - 24, 170 * Mathf.Clamp01(p.Car.Health / 100f), 5), new Color(1f, 0.6f, 0.25f));
+                GUI.Label(new Rect(W - 330, RefH - 18, 310, 18), svc.Station >= 0 ? "<color=#3cd4ff>♪ " + OpenWorld.Stations[svc.Station] + "</color>" : "라디오 꺼짐 ( , . )", new GUIStyle(small) { alignment = TextAnchor.UpperRight });
             }
 
             // mission panel (top left)
@@ -162,6 +170,10 @@ namespace NeonHarbor.Runtime
                 var st = new GUIStyle(prompt) { normal = { textColor = color } }; GUI.Label(r, text, st); y += 38;
             }
 
+            if (svc.Current == OpenWorld.Mode.Wheel) DrawWheel(W);
+            if (svc.Current == OpenWorld.Mode.Shop) DrawShop(W);
+            if (GUI.Button(new Rect(W - 80, 150, 62, 26), "지도 M")) svc.ToggleMap();
+
             // banner
             if (bannerTitle != null && Time.unscaledTime - bannerTime < 3f)
             {
@@ -193,6 +205,27 @@ namespace NeonHarbor.Runtime
                 Box(new Rect(c.x + sx - size / 2 - 1, c.y + sy - size / 2 - 1, size + 2, size + 2), Color.black);
                 Box(new Rect(c.x + sx - size / 2, c.y + sy - size / 2, size, size), col);
             }
+            // police search area (flashing red / blue disc)
+            if (game.Wanted.Stars > 0 && game.Wanted.Searching)
+            {
+                var lk = new Vector3(game.Wanted.LastKnown.X, 0, game.Wanted.LastKnown.Y) - p.Position; float rr = game.Wanted.SearchRadius * MapScale;
+                float sx = Vector3.Dot(lk, right) * MapScale, sy = -Vector3.Dot(lk, fwd) * MapScale;
+                var old = GUI.color; GUI.color = Mathf.FloorToInt(Time.unscaledTime * 2) % 2 == 0 ? new Color(1f, 0.24f, 0.31f, 0.25f) : new Color(0.24f, 0.43f, 1f, 0.25f);
+                GUI.DrawTexture(new Rect(c.x + sx - rr, c.y + sy - rr, rr * 2, rr * 2), disc); GUI.color = old;
+            }
+            // GPS route
+            var route = game.Services.Route;
+            for (int k = 0; k + 1 < route.Count; k++)
+            {
+                Vector3 a = route[k] - p.Position, b = route[k + 1] - p.Position;
+                Vector2 A = new Vector2(Vector3.Dot(a, right), -Vector3.Dot(a, fwd)) * MapScale + c, Bv = new Vector2(Vector3.Dot(b, right), -Vector3.Dot(b, fwd)) * MapScale + c;
+                Vector2 d = Bv - A; float len = d.magnitude; if (len < 0.5f) continue;
+                var m0 = GUI.matrix; GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, A);
+                Box(new Rect(A.x, A.y - 2.5f, len, 5), game.Services.RouteIsMission ? new Color(1f, 0.82f, 0.24f) : new Color(0.78f, 0.42f, 1f));
+                GUI.matrix = m0;
+            }
+            foreach (var pl in game.Services.Places) Blip(pl.Pos, pl.Color, 8, false);
+            if (game.Services.Waypoint.HasValue) Blip(game.Services.Waypoint.Value, new Color(0.78f, 0.42f, 1f), 9, true);
             foreach (var cash in game.Missions.Cash) Blip(cash.position, new Color(0.36f, 1f, 0.54f), 4, false);
             if (game.Missions.Active == null) foreach (var j in game.Missions.Jobs) Blip(j.Pos, new Color(1f, 0.76f, 0.23f), 9, true);
             if (game.Missions.Target.HasValue) Blip(game.Missions.Target.Value, new Color(0.24f, 0.83f, 1f), 10, true);
@@ -206,12 +239,83 @@ namespace NeonHarbor.Runtime
             GUI.EndGroup();
         }
 
+        private void DrawFullMap(float W)
+        {
+            var svc = game.Services; var city = game.City;
+            Box(new Rect(0, 0, W, RefH), new Color(0.02f, 0.03f, 0.06f, 0.95f));
+            float size = RefH - 110, ox = (W - size) / 2, oy = 60;
+            GUI.DrawTexture(new Rect(ox, oy, size, size), map);
+            float k = size / map.width;
+            Vector2 W2S(Vector3 w) => new Vector2(ox + (w.x + MapOffset) * MapScale * k, oy + size - (w.z + MapOffset) * MapScale * k);
+            for (int i = 0; i + 1 < svc.Route.Count; i++)
+            {
+                Vector2 A = W2S(svc.Route[i]), B = W2S(svc.Route[i + 1]), d = B - A; if (d.magnitude < 0.5f) continue;
+                var m0 = GUI.matrix; GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, A);
+                Box(new Rect(A.x, A.y - 2, d.magnitude, 4), svc.RouteIsMission ? new Color(1f, 0.82f, 0.24f) : new Color(0.78f, 0.42f, 1f)); GUI.matrix = m0;
+            }
+            void Icon(Vector3 w, Color col, string letter)
+            {
+                var s = W2S(w); Box(new Rect(s.x - 10, s.y - 10, 20, 20), col);
+                GUI.Label(new Rect(s.x - 10, s.y - 11, 20, 20), "<color=#0b0f16><b>" + letter + "</b></color>", new GUIStyle(prompt) { fontSize = 13 });
+            }
+            foreach (var pl in svc.Places) Icon(pl.Pos, pl.Color, pl.Letter);
+            foreach (var j in game.Missions.Jobs) Icon(j.Pos, new Color(1f, 0.76f, 0.23f), "!");
+            if (svc.Waypoint.HasValue) Icon(svc.Waypoint.Value, new Color(0.78f, 0.42f, 1f), "W");
+            var me = W2S(game.Player.Position); Box(new Rect(me.x - 6, me.y - 6, 12, 12), Color.black); Box(new Rect(me.x - 5, me.y - 5, 10, 10), Color.white);
+            GUI.Label(new Rect(20, 14, 900, 34), "<b>네온 하버 지도</b>   <size=13>클릭: 웨이포인트 설정 · 다시 클릭: 해제 · M / Esc: 닫기</size>", new GUIStyle(label) { fontSize = 22 });
+            GUI.Label(new Rect(20, RefH - 34, W - 40, 24), "<color=#ff5a6a>■</color> H 병원   <color=#4b8cff>■</color> P 경찰서   <color=#ff8a3c>■</color> G 총포사   <color=#3cffc8>■</color> S 스프레이 정비소   <color=#ffc23a>■</color> ! 미션   <color=#c86bff>■</color> W 웨이포인트", small);
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0)
+            {
+                Vector2 mp = e.mousePosition; // already in the scaled GUI space
+                if (new Rect(ox, oy, size, size).Contains(mp))
+                {
+                    float wx = (mp.x - ox) / (MapScale * k) - MapOffset, wz = (oy + size - mp.y) / (MapScale * k) - MapOffset;
+                    svc.ClickMap(wx, wz); e.Use();
+                }
+            }
+            if (GUI.Button(new Rect(W - 100, 14, 80, 30), "닫기")) svc.Close();
+        }
+
+        private void DrawWheel(float W)
+        {
+            Box(new Rect(0, 0, W, RefH), new Color(0, 0, 0, 0.45f));
+            var a = game.Player.Arsenal; Vector2 c = new Vector2(W / 2, RefH / 2);
+            var slots = new[] { (WeaponKind.Fist, new Vector2(0, -110)), (WeaponKind.Pistol, new Vector2(110, 60)), (WeaponKind.Smg, new Vector2(-110, 60)) };
+            foreach (var (kind, off) in slots)
+            {
+                var spec = WeaponSpec.All[(int)kind]; bool sel = game.Services.WheelSelection == kind, owned = a.Owns(kind);
+                var r = new Rect(c.x + off.x - 60, c.y + off.y - 30, 120, 60);
+                Box(r, sel ? new Color(1f, 0.8f, 0.2f, 0.35f) : new Color(0.04f, 0.06f, 0.1f, 0.85f));
+                if (sel) { Box(new Rect(r.x, r.y, r.width, 2), new Color(1f, 0.8f, 0.2f)); Box(new Rect(r.x, r.yMax - 2, r.width, 2), new Color(1f, 0.8f, 0.2f)); }
+                string ammo = spec.Melee ? "" : owned ? $"{a.ClipOf(kind)} / {a.ReserveOf(kind)}" : "없음";
+                GUI.Label(r, $"<b>{spec.Name}</b>\n<size=14>{ammo}</size>", new GUIStyle(prompt) { normal = { textColor = owned ? Color.white : new Color(1, 1, 1, 0.4f) } });
+            }
+            GUI.Label(new Rect(c.x - 150, c.y - 12, 300, 24), "마우스로 고르고 Tab을 놓으세요", new GUIStyle(small) { alignment = TextAnchor.MiddleCenter });
+        }
+
+        private void DrawShop(float W)
+        {
+            var r = new Rect(W / 2 - 220, 120, 440, 400);
+            Box(new Rect(0, 0, W, RefH), new Color(0, 0, 0, 0.45f)); Box(r, new Color(0.05f, 0.07f, 0.1f, 0.96f)); Box(new Rect(r.x, r.y, r.width, 3), new Color(1f, 0.54f, 0.24f));
+            GUI.Label(new Rect(r.x + 20, r.y + 14, 300, 40), "<color=#ff8a3c><size=30><b>총포사</b></size></color>", label);
+            GUI.Label(new Rect(r.x + 20, r.y + 56, 300, 22), $"보유 자금 <b>${game.Player.Money:N0}</b>", small);
+            for (int k = 0; k < 5; k++)
+            {
+                var item = (ShopItem)k; var br = new Rect(r.x + 20, r.y + 90 + k * 54, r.width - 40, 46);
+                if (GUI.Button(br, GUIContent.none)) game.Services.Buy(item);
+                GUI.Label(new Rect(br.x + 12, br.y, 300, br.height), $"[{k + 1}]  <b>{Shop.Name(item)}</b>", new GUIStyle(label) { alignment = TextAnchor.MiddleLeft });
+                GUI.Label(new Rect(br.x, br.y, br.width - 12, br.height), $"<color=#7ee08f><b>${Shop.Price(game.Config, item):N0}</b></color>", new GUIStyle(label) { alignment = TextAnchor.MiddleRight, fontSize = 20 });
+            }
+            if (GUI.Button(new Rect(r.x + 20, r.yMax - 46, r.width - 40, 32), "나가기 (Esc)")) game.Services.Close();
+        }
+
         private void DrawIntro(float W)
         {
             Box(new Rect(0, 0, W * 0.55f, RefH), new Color(0.02f, 0.03f, 0.06f, 0.88f));
             Shadowed(new Rect(36, 150, 600, 120), "네온 하버", title);
             GUI.Label(new Rect(40, 270, 520, 60), "항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 무기를 주워 싸울 수도 있지만, 소란을 피울수록 더 많은 경찰이 총을 들고 쫓아옵니다.", tagline);
-            string[] rows = { "WASD · 방향키   걷기 / 운전", "마우스   카메라 (우클릭을 누른 채 움직여도 됨)", "Shift · Space   달리기 · 점프 / 핸드브레이크", "F   차량 타기 · 내리기 (운전 중인 차는 탈취)", "좌클릭 · 우클릭   사격·주먹 · 조준 (1·2·3 / Q 무기, R 재장전)", "H · T · 휠   경적 · 시간 빨리감기 · 카메라 거리", "노란 빛기둥   택배 배달 · 스트리트 레이스 · 추격 따돌리기", "Esc   마우스 커서 풀기" };
+            string[] rows = { "Tab (누르고 있기)   무기 휠 · M 지도/웨이포인트 · , . 라디오", "WASD · 방향키   걷기 / 운전", "마우스   카메라 (우클릭을 누른 채 움직여도 됨)", "Shift · Space   달리기 · 점프 / 핸드브레이크", "F   차량 타기 · 내리기 (운전 중인 차는 탈취)", "좌클릭 · 우클릭   사격·주먹 · 조준 (1·2·3 / Q 무기, R 재장전)", "H · T · 휠   경적 · 시간 빨리감기 · 카메라 거리", "노란 빛기둥   택배 배달 · 스트리트 레이스 · 추격 따돌리기", "Esc   마우스 커서 풀기" };
             for (int k = 0; k < rows.Length; k++) GUI.Label(new Rect(40, 340 + k * 24, 560, 24), rows[k], small);
             if (GUI.Button(new Rect(40, 530, 240, 56), "도시로 나가기", button) || Event.current.keyCode == KeyCode.Return) game.StartPlaying();
         }

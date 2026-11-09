@@ -42,6 +42,8 @@ namespace NeonHarbor.Runtime
 
         /// <summary>Set by the game: the player (for spawning, AI targets, contacts).</summary>
         public PlayerController Player;
+        /// <summary>Set by the game: where a police car should head (player when seen, search area otherwise).</summary>
+        public Func<Vehicle, Vector3> PoliceTarget;
 
         /// <summary>Creates the director.</summary>
         public WorldDirector(HarborConfig cfg, CityLayout city, HarborMaterials mats, Transform root)
@@ -256,7 +258,7 @@ namespace NeonHarbor.Runtime
 
         private void UpdatePolice(Vehicle v, float dt, float time)
         {
-            var tgt = Player.Position; float d = Vector3.Distance(new Vector3(tgt.x, 0, tgt.z), new Vector3(v.Position.x, 0, v.Position.z));
+            var tgt = PoliceTarget != null ? PoliceTarget(v) : Player.Position; float d = Vector3.Distance(new Vector3(tgt.x, 0, tgt.z), new Vector3(v.Position.x, 0, v.Position.z));
             v.Repath -= dt;
             if (v.Repath <= 0) { v.Repath = 1; v.Path = city.Path(city.NearestNode(v.Position.x, v.Position.z), city.NearestNode(tgt.x, tgt.z)); }
             Vector2 aim;

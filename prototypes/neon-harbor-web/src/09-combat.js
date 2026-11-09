@@ -146,7 +146,7 @@ const COMBAT = (() => {
     for (let k = 0; k < 3; k++) emit("hit", new THREE.Vector3(p.pos.x, p.pos.y + 1.2, p.pos.z), new THREE.Vector3(dir.x * 2 + rand(-1, 1), rand(0.5, 2), dir.z * 2 + rand(-1, 1)), 0.35, 0.18);
     if (p.health <= 0) {
       knockPed(p, dir.x * 3, dir.z * 3, false);
-      if (byPlayer) addHeat(1, "보행자 공격");
+      if (byPlayer) WANTED.crime(1, "보행자 공격");
     } else { p.state = "flee"; p.timer = 7; p.threat = P.pos.clone(); }
   }
   function damageCar(v, amount, byPlayer) {
@@ -180,7 +180,7 @@ const COMBAT = (() => {
       HUD.hurt(1);
     }
     scarePeds(c, 60, 8);
-    if (v.burnByPlayer) addHeat(1, "차량 폭발");
+    if (v.burnByPlayer) WANTED.crime(1, "차량 폭발");
   }
   const BURNT = new THREE.MeshStandardMaterial({ color: col(0x161412), roughness: 0.95, metalness: 0.2 });
 
@@ -206,10 +206,10 @@ const COMBAT = (() => {
     for (let k = 0; k < 3; k++) emit("hit", new THREE.Vector3(o.pos.x, o.pos.y + 1.2, o.pos.z), new THREE.Vector3(rand(-1, 1), rand(0.5, 2), rand(-1, 1)), 0.35, 0.18);
     if (applyDamage(o, amount)) {
       o.down = true; o.downT = 14; o.rig.root.rotation.set(-Math.PI / 2, o.yaw, 0, "YXZ"); o.pos.y = CITY.groundHeight(o.pos.x, o.pos.z) + 0.12;
-      if (byPlayer) addHeat(1, "경찰관 공격");
+      if (byPlayer) WANTED.crime(1, "경찰관 공격", true);
       // drop ammo
       dropPickup("ammo", o.pos.clone());
-    } else if (byPlayer && P.stars < 2) addHeat(2 - P.heat + 0.01, "경찰관 공격");
+    } else if (byPlayer && P.stars < 2) WANTED.crime(2 - P.heat + 0.01, "경찰관 공격", true);
   }
   function lineOfSight(a, b) { return raycastBoxes(a.x, a.y, a.z, b.x, b.y, b.z) >= 0.999; }
   function updateOfficers(dt) {
@@ -217,7 +217,7 @@ const COMBAT = (() => {
       const o = OFFICERS[k];
       if (o.down) { o.downT -= dt; if (o.downT < 0 || o.pos.distanceTo(P.pos) > 150) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); } else o.rig.root.position.copy(o.pos); continue; }
       if (P.stars === 0 && o.pos.distanceTo(P.pos) > 60) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); continue; }
-      const tgt = P.car ? P.car.pos : P.pos, d = Math.hypot(tgt.x - o.pos.x, tgt.z - o.pos.z);
+      const tgt = WANTED.st.searching ? WANTED.targetFor(o) : (P.car ? P.car.pos : P.pos), d = Math.hypot(tgt.x - o.pos.x, tgt.z - o.pos.z);
       const eye = new THREE.Vector3(o.pos.x, o.pos.y + 1.5, o.pos.z), aimAt = new THREE.Vector3(tgt.x, (P.car ? 0.9 : P.pos.y + 1.2), tgt.z);
       const los = d < 70 && lineOfSight(eye, aimAt);
       const want = Math.atan2(tgt.x - o.pos.x, tgt.z - o.pos.z);
@@ -347,11 +347,11 @@ const COMBAT = (() => {
     const dir = d.clone(); dir.y = 0; dir.normalize();
     if (hit.kind === "ped") { damagePed(hit.ped, spec.damage, dir, true); hitMarker = 0.18; }
     else if (hit.kind === "officer") { hurtOfficer(hit.officer, spec.damage, true); hitMarker = 0.18; }
-    else if (hit.kind === "car") { damageCar(hit.car, spec.damage * 0.7, true); hitMarker = 0.12; for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1); if (hit.car.type === "police") addHeat(1, "경찰차 사격"); }
+    else if (hit.kind === "car") { damageCar(hit.car, spec.damage * 0.7, true); hitMarker = 0.12; for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1); if (hit.car.type === "police") WANTED.crime(1, "경찰차 사격", true); }
     else if (hit.kind !== "none") for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1);
     // gunfire is noticed
     scarePeds(P.pos, 45);
-    if (gunfireHeatCd <= 0 && copNearby(55)) { addHeat(1, "총기 사용"); gunfireHeatCd = 6; }
+    if (gunfireHeatCd <= 0) { WANTED.crime(1, "총기 사용"); gunfireHeatCd = 6; }
     if (w.clip === 0 && w.reserve > 0) startReload();
   }
   function punch() {
@@ -369,9 +369,9 @@ const COMBAT = (() => {
     if (target) {
       AUDIO.thud(0.5); hitMarker = 0.15;
       target.health = (target.health ?? 40) - WEAPONS.fist.damage;
-      if (target.health <= 0) { knockPed(target, f.x * 3, f.y * 3, false); addHeat(0.5, "폭행"); }
-      else { target.state = "flee"; target.timer = 6; target.threat = P.pos.clone(); target.pos.x += f.x * 0.4; target.pos.z += f.y * 0.4; addHeat(0.25, "폭행"); }
-      if (copNearby(30)) addHeat(1, "경찰 앞에서 폭행");
+      if (target.health <= 0) { knockPed(target, f.x * 3, f.y * 3, false); WANTED.crime(0.5, "폭행"); }
+      else { target.state = "flee"; target.timer = 6; target.threat = P.pos.clone(); target.pos.x += f.x * 0.4; target.pos.z += f.y * 0.4; WANTED.crime(0.25, "폭행"); }
+      if (copNearby(30)) WANTED.crime(1, "경찰 앞에서 폭행");
     } else if (officer) { AUDIO.thud(0.5); hitMarker = 0.15; hurtOfficer(officer, WEAPONS.fist.damage, true); }
   }
 
