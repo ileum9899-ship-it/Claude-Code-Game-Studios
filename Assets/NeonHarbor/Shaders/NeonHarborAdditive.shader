@@ -1,4 +1,5 @@
-// Unlit additive sprite for light pools, headlight cones and mission beams.
+// Unlit sprite for light pools, headlight cones, mission beams and combat effects.
+// Additive by default; set _DstBlend = 10 (OneMinusSrcAlpha) for smoke.
 // Works on Built-in and URP (plain CG/HLSL, no lighting). Fog-aware.
 Shader "NeonHarbor/Additive"
 {
@@ -6,11 +7,13 @@ Shader "NeonHarbor/Additive"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _TintColor ("Tint (alpha = strength)", Color) = (1,1,1,1)
+        [HideInInspector] _SrcBlend ("Src Blend", Float) = 5
+        [HideInInspector] _DstBlend ("Dst Blend", Float) = 1
     }
     SubShader
     {
         Tags { "Queue"="Transparent+10" "RenderType"="Transparent" "IgnoreProjector"="True" }
-        Blend SrcAlpha One
+        Blend [_SrcBlend] [_DstBlend]
         ZWrite Off
         Cull Off
         Offset -2, -2

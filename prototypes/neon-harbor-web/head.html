@@ -44,6 +44,18 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 #gear { font-family: var(--f-num); font-size: 30px; color: var(--heat); margin-right: 10px; }
 #speedo .bar { width: 160px; margin-left: auto; margin-top: 6px; height: 5px; }
 #speedo .bar i { background: linear-gradient(90deg, #ff8a3c, #ffd36a); }
+.bar.armor i { background: linear-gradient(90deg, #3c8cff, #8fc4ff); }
+#weapon { display: flex; gap: 10px; align-items: baseline; margin-top: 4px; font-size: 14px; color: var(--ink); }
+#wammo { font-family: var(--f-num); font-size: 24px; color: var(--ink); font-variant-numeric: tabular-nums; }
+#cross { left: 50%; top: 50%; width: 0; height: 0; }
+#cross i { position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 2px #000; transition: transform 0.12s; }
+#cross i:nth-child(1) { width: 2px; height: 8px; left: -1px; top: -16px; } #cross i:nth-child(2) { width: 2px; height: 8px; left: -1px; top: 8px; }
+#cross i:nth-child(3) { width: 8px; height: 2px; left: -16px; top: -1px; } #cross i:nth-child(4) { width: 8px; height: 2px; left: 8px; top: -1px; }
+#cross b { position: absolute; width: 3px; height: 3px; left: -1.5px; top: -1.5px; background: #fff; border-radius: 50%; }
+#cross.aim i:nth-child(1) { transform: translateY(4px); } #cross.aim i:nth-child(2) { transform: translateY(-4px); }
+#cross.aim i:nth-child(3) { transform: translateX(4px); } #cross.aim i:nth-child(4) { transform: translateX(-4px); }
+#cross.hit i { background: var(--danger); }
+#hurt { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(190,10,20,0.55) 100%); }
 
 #mission { top: calc(16px + env(safe-area-inset-top, 0px)); left: max(18px, env(safe-area-inset-left, 0px)); width: min(340px, calc(100vw - 230px)); padding: 10px 14px; background: var(--shade); border-left: 3px solid var(--cyan); border-radius: 0 8px 8px 0; backdrop-filter: blur(4px); }
 #mName { font-family: var(--f-display); font-size: 19px; color: var(--cyan); }
@@ -83,6 +95,7 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
   #touchUI { display: grid; position: fixed; z-index: 3; right: max(14px, env(safe-area-inset-right, 0px)); bottom: calc(140px + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(2, 64px); gap: 10px; }
   #touchUI button { width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(10,14,22,0.55); color: var(--ink); font: 600 13px var(--f-body); touch-action: none; }
   #touchUI button.held { background: rgba(255,204,51,0.6); color: #111; }
+  #touchUI button.fire { border-color: rgba(255,77,94,0.8); }
   #minimap { width: 130px; height: 130px; } .bar { width: 130px; }
   #money { font-size: 36px; } #kmh { font-size: 54px; }
   #br { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: auto; left: 160px; text-align: left; }
@@ -95,8 +108,10 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <div id="view"></div>
 <div id="loading">도시를 짓는 중…</div>
 
-<div class="hud" id="tr"><div id="clock">17:00</div><div id="money">$500</div><div id="stars"><span></span><span></span><span></span><span></span><span></span></div></div>
-<div class="hud" id="bl"><canvas id="minimap" width="380" height="380" aria-label="미니맵"></canvas><div class="bar" title="체력"><i id="hp" style="width:100%"></i></div></div>
+<div class="hud" id="tr"><div id="clock">17:00</div><div id="money">$500</div><div id="stars"><span></span><span></span><span></span><span></span><span></span></div><div id="weapon"><span id="wname">주먹</span><span id="wammo"></span></div></div>
+<div class="hud" id="cross" hidden><i></i><i></i><i></i><i></i><b></b></div>
+<div id="hurt"></div>
+<div class="hud" id="bl"><canvas id="minimap" width="380" height="380" aria-label="미니맵"></canvas><div class="bar" title="체력"><i id="hp" style="width:100%"></i></div><div class="bar armor" id="arbar" title="방탄복" hidden><i id="ar" style="width:0%"></i></div></div>
 <div class="hud" id="br"><div id="speedo" hidden><div id="carname">세단</div><div><span id="gear">N</span><span id="kmh">0</span><small>km/h</small></div><div class="bar" title="차량 내구도"><i id="dmg" style="width:100%"></i></div></div></div>
 <div class="hud" id="mission" hidden><div id="mName">미션</div><div id="mGoal"></div><div class="row"><span id="mTime">0:00</span><span id="mReward"></span></div></div>
 <div class="hud" id="toasts" aria-live="polite"></div>
@@ -105,6 +120,7 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <button id="helpBtn" title="조작법">조작법</button>
 <div id="joy" hidden><div id="knob"></div></div>
 <div id="touchUI" aria-label="터치 조작">
+  <button data-key="Fire" class="fire">사격</button><button data-key="WeaponNext">무기</button>
   <button data-key="KeyF">타기</button><button data-key="Space">점프<br>핸드브</button>
   <button data-key="KeyH">경적</button><button data-key="ShiftLeft">달리기</button>
 </div>
@@ -112,12 +128,13 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <section id="intro">
   <div class="card">
     <h1>네온<br>하버</h1>
-    <p class="tag">항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 너무 소란을 피우면 경찰이 쫓아옵니다.</p>
+    <p class="tag">항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 무기를 주워 싸울 수도 있지만, 소란을 피울수록 더 많은 경찰이 총을 들고 쫓아옵니다.</p>
     <table>
       <tr><td>WASD · 방향키</td><td>걷기 / 운전</td></tr>
       <tr><td>마우스</td><td>카메라 (화면 클릭 시 마우스 고정, Esc로 해제)</td></tr>
       <tr><td>Shift · Space</td><td>달리기 · 점프 / 핸드브레이크(드리프트)</td></tr>
       <tr><td>F</td><td>차량 타기·내리기 (운전 중인 차는 탈취)</td></tr>
+      <tr><td>좌클릭 · 우클릭</td><td>사격·주먹 · 조준 (1·2·3 / Q 무기 교체, R 재장전)</td></tr>
       <tr><td>H · T · 휠</td><td>경적 · 시간 빨리감기 · 카메라 거리</td></tr>
       <tr><td>노란 빛기둥</td><td>미션: 택배 배달, 스트리트 레이스, 추격 따돌리기</td></tr>
       <tr><td>휴대폰</td><td>왼쪽 엄지 조이스틱, 오른쪽 드래그로 카메라</td></tr>

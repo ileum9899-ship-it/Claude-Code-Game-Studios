@@ -14,7 +14,7 @@ namespace NeonHarbor.Runtime
         private double phaseA, phaseB, sirenPhase; private float lp, noiseLp; private int rate;
         private System.Random rng = new System.Random(1);
         private AudioSource oneShots;
-        private AudioClip horn, crash, cash, win, fail, star;
+        private AudioClip horn, crash, cash, win, fail, star, pistol, smg, blast, click, reloadClick, swing;
 
         private void Awake()
         {
@@ -27,6 +27,8 @@ namespace NeonHarbor.Runtime
             win = Seq(new[] { 523f, 659f, 784f, 1046f }, 0.13f, 0.25f);
             fail = Seq(new[] { 392f, 311f, 262f }, 0.2f, 0.2f);
             star = Seq(new[] { 660f, 440f }, 0.12f, 0.15f);
+            pistol = Gunshot(0.22f, 0.9f, 0.10f); smg = Gunshot(0.14f, 0.7f, 0.05f); blast = Noise(1.8f, 1f);
+            click = Tone(new[] { 900f }, 0.03f, true, 0.12f); reloadClick = Seq(new[] { 1800f, 1200f }, 0.03f, 0.12f); swing = Gunshot(0.12f, 0.25f, 0.6f);
         }
 
         /// <summary>Per-frame parameters from the game.</summary>
@@ -49,6 +51,21 @@ namespace NeonHarbor.Runtime
         public void Win() { oneShots.PlayOneShot(win); }
         public void Fail() { oneShots.PlayOneShot(fail); }
         public void Star() { oneShots.PlayOneShot(star); }
+        public void Shot(bool smgSound, float volume = 1) { oneShots.PlayOneShot(smgSound ? smg : pistol, volume); }
+        public void Blast() { oneShots.PlayOneShot(blast); }
+        public void Click(bool reloadDone) { oneShots.PlayOneShot(reloadDone ? reloadClick : click); }
+        public void Swing() { oneShots.PlayOneShot(swing, 0.5f); }
+
+        private AudioClip Gunshot(float dur, float vol, float crack)
+        {
+            int n = (int)(rate * dur); var d = new float[n]; var r = new System.Random(11); float low = 0;
+            for (int k = 0; k < n; k++)
+            {
+                float t = k / (float)rate, noise = (float)r.NextDouble() * 2 - 1; low += 0.15f * (noise - low);
+                d[k] = (noise * crack * Mathf.Exp(-t * 60) + low * 2.5f * Mathf.Exp(-t * 14) + Mathf.Sin(t * 2 * Mathf.PI * 110) * 0.5f * Mathf.Exp(-t * 25)) * vol;
+            }
+            var clip = AudioClip.Create("shot", n, 1, rate, false); clip.SetData(d, 0); return clip;
+        }
 
         private void OnAudioFilterRead(float[] data, int channels)
         {

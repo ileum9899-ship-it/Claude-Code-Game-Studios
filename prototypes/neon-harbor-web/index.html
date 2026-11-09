@@ -44,6 +44,18 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 #gear { font-family: var(--f-num); font-size: 30px; color: var(--heat); margin-right: 10px; }
 #speedo .bar { width: 160px; margin-left: auto; margin-top: 6px; height: 5px; }
 #speedo .bar i { background: linear-gradient(90deg, #ff8a3c, #ffd36a); }
+.bar.armor i { background: linear-gradient(90deg, #3c8cff, #8fc4ff); }
+#weapon { display: flex; gap: 10px; align-items: baseline; margin-top: 4px; font-size: 14px; color: var(--ink); }
+#wammo { font-family: var(--f-num); font-size: 24px; color: var(--ink); font-variant-numeric: tabular-nums; }
+#cross { left: 50%; top: 50%; width: 0; height: 0; }
+#cross i { position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 2px #000; transition: transform 0.12s; }
+#cross i:nth-child(1) { width: 2px; height: 8px; left: -1px; top: -16px; } #cross i:nth-child(2) { width: 2px; height: 8px; left: -1px; top: 8px; }
+#cross i:nth-child(3) { width: 8px; height: 2px; left: -16px; top: -1px; } #cross i:nth-child(4) { width: 8px; height: 2px; left: 8px; top: -1px; }
+#cross b { position: absolute; width: 3px; height: 3px; left: -1.5px; top: -1.5px; background: #fff; border-radius: 50%; }
+#cross.aim i:nth-child(1) { transform: translateY(4px); } #cross.aim i:nth-child(2) { transform: translateY(-4px); }
+#cross.aim i:nth-child(3) { transform: translateX(4px); } #cross.aim i:nth-child(4) { transform: translateX(-4px); }
+#cross.hit i { background: var(--danger); }
+#hurt { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(190,10,20,0.55) 100%); }
 
 #mission { top: calc(16px + env(safe-area-inset-top, 0px)); left: max(18px, env(safe-area-inset-left, 0px)); width: min(340px, calc(100vw - 230px)); padding: 10px 14px; background: var(--shade); border-left: 3px solid var(--cyan); border-radius: 0 8px 8px 0; backdrop-filter: blur(4px); }
 #mName { font-family: var(--f-display); font-size: 19px; color: var(--cyan); }
@@ -83,6 +95,7 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
   #touchUI { display: grid; position: fixed; z-index: 3; right: max(14px, env(safe-area-inset-right, 0px)); bottom: calc(140px + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(2, 64px); gap: 10px; }
   #touchUI button { width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(10,14,22,0.55); color: var(--ink); font: 600 13px var(--f-body); touch-action: none; }
   #touchUI button.held { background: rgba(255,204,51,0.6); color: #111; }
+  #touchUI button.fire { border-color: rgba(255,77,94,0.8); }
   #minimap { width: 130px; height: 130px; } .bar { width: 130px; }
   #money { font-size: 36px; } #kmh { font-size: 54px; }
   #br { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: auto; left: 160px; text-align: left; }
@@ -95,8 +108,10 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <div id="view"></div>
 <div id="loading">도시를 짓는 중…</div>
 
-<div class="hud" id="tr"><div id="clock">17:00</div><div id="money">$500</div><div id="stars"><span></span><span></span><span></span><span></span><span></span></div></div>
-<div class="hud" id="bl"><canvas id="minimap" width="380" height="380" aria-label="미니맵"></canvas><div class="bar" title="체력"><i id="hp" style="width:100%"></i></div></div>
+<div class="hud" id="tr"><div id="clock">17:00</div><div id="money">$500</div><div id="stars"><span></span><span></span><span></span><span></span><span></span></div><div id="weapon"><span id="wname">주먹</span><span id="wammo"></span></div></div>
+<div class="hud" id="cross" hidden><i></i><i></i><i></i><i></i><b></b></div>
+<div id="hurt"></div>
+<div class="hud" id="bl"><canvas id="minimap" width="380" height="380" aria-label="미니맵"></canvas><div class="bar" title="체력"><i id="hp" style="width:100%"></i></div><div class="bar armor" id="arbar" title="방탄복" hidden><i id="ar" style="width:0%"></i></div></div>
 <div class="hud" id="br"><div id="speedo" hidden><div id="carname">세단</div><div><span id="gear">N</span><span id="kmh">0</span><small>km/h</small></div><div class="bar" title="차량 내구도"><i id="dmg" style="width:100%"></i></div></div></div>
 <div class="hud" id="mission" hidden><div id="mName">미션</div><div id="mGoal"></div><div class="row"><span id="mTime">0:00</span><span id="mReward"></span></div></div>
 <div class="hud" id="toasts" aria-live="polite"></div>
@@ -105,6 +120,7 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <button id="helpBtn" title="조작법">조작법</button>
 <div id="joy" hidden><div id="knob"></div></div>
 <div id="touchUI" aria-label="터치 조작">
+  <button data-key="Fire" class="fire">사격</button><button data-key="WeaponNext">무기</button>
   <button data-key="KeyF">타기</button><button data-key="Space">점프<br>핸드브</button>
   <button data-key="KeyH">경적</button><button data-key="ShiftLeft">달리기</button>
 </div>
@@ -112,12 +128,13 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
 <section id="intro">
   <div class="card">
     <h1>네온<br>하버</h1>
-    <p class="tag">항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 너무 소란을 피우면 경찰이 쫓아옵니다.</p>
+    <p class="tag">항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 무기를 주워 싸울 수도 있지만, 소란을 피울수록 더 많은 경찰이 총을 들고 쫓아옵니다.</p>
     <table>
       <tr><td>WASD · 방향키</td><td>걷기 / 운전</td></tr>
       <tr><td>마우스</td><td>카메라 (화면 클릭 시 마우스 고정, Esc로 해제)</td></tr>
       <tr><td>Shift · Space</td><td>달리기 · 점프 / 핸드브레이크(드리프트)</td></tr>
       <tr><td>F</td><td>차량 타기·내리기 (운전 중인 차는 탈취)</td></tr>
+      <tr><td>좌클릭 · 우클릭</td><td>사격·주먹 · 조준 (1·2·3 / Q 무기 교체, R 재장전)</td></tr>
       <tr><td>H · T · 휠</td><td>경적 · 시간 빨리감기 · 카메라 거리</td></tr>
       <tr><td>노란 빛기둥</td><td>미션: 택배 배달, 스트리트 레이스, 추격 따돌리기</td></tr>
       <tr><td>휴대폰</td><td>왼쪽 엄지 조이스틱, 오른쪽 드래그로 카메라</td></tr>
@@ -1265,7 +1282,7 @@ function spawnPed(blk, t) {
 }
 function removePed(p) { dynamic.remove(p.h.root); PEDS.splice(PEDS.indexOf(p), 1); }
 function knockPed(p, vx, vz, byPlayer) {
-  if (p.state === "down" || p.state === "air") return;
+  if (p.state === "down" || p.state === "air" || p.state === "gone") return;
   p.state = "air"; p.timer = 12;
   p.vel.set(vx * 1.05 + rand(-1, 1), 3 + Math.hypot(vx, vz) * 0.22, vz * 1.05 + rand(-1, 1));
   p.spin = rand(-8, 8);
@@ -1424,11 +1441,15 @@ const AUDIO = (() => {
     win() { blip([523, 659, 784, 1046], 0.13, "triangle", 0.25); },
     fail() { blip([392, 311, 262], 0.2, "sawtooth", 0.15); },
     star() { blip([660, 440], 0.12, "square", 0.12); },
+    shot(v = 1, light = false) { burst(0.9 * v, light ? 2600 : 1800, light ? 0.12 : 0.2); burst(0.7 * v, 140, light ? 0.15 : 0.28); },
+    explosion() { burst(1.2, 600, 1.4); burst(1.2, 90, 1.8); },
+    click(reload) { blip(reload ? [1800, 1200] : [900], 0.03, "square", 0.08); },
+    swing() { burst(0.25, 900, 0.12); },
   };
 })();
 
 // ---------------------------------------------------------------- input
-const INPUT = { keys: new Set(), mdx: 0, mdy: 0, locked: false, dragging: false, wheel: 0, touch: { x: 0, y: 0, active: false }, pressed: new Set() };
+const INPUT = { keys: new Set(), mdx: 0, mdy: 0, locked: false, dragging: false, wheel: 0, touch: { x: 0, y: 0, active: false }, pressed: new Set(), fire: false, firePressed: false, aim: false };
 const isDown = c => INPUT.keys.has(c);
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(e.code)) e.preventDefault();
@@ -1440,12 +1461,18 @@ addEventListener("blur", () => INPUT.keys.clear());
 const canvasEl = renderer.domElement;
 canvasEl.addEventListener("contextmenu", e => e.preventDefault());
 canvasEl.addEventListener("mousedown", e => {
-  AUDIO.start(); INPUT.dragging = true;
-  if (!INPUT.locked && e.button === 0 && canvasEl.requestPointerLock && !matchMedia("(hover: none)").matches) {
-    try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* sandbox may refuse */ }
+  AUDIO.start();
+  if (e.button === 2) { INPUT.aim = true; if (!INPUT.locked) INPUT.dragging = true; }
+  if (e.button === 0) {
+    if (INPUT.locked || pointerLockRefused) { INPUT.fire = true; INPUT.firePressed = true; }
+    else if (canvasEl.requestPointerLock && !matchMedia("(hover: none)").matches) {
+      try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => { pointerLockRefused = true; }); } catch (err) { pointerLockRefused = true; }
+    }
   }
 });
-addEventListener("mouseup", () => INPUT.dragging = false);
+let pointerLockRefused = false;
+document.addEventListener("pointerlockerror", () => { pointerLockRefused = true; });
+addEventListener("mouseup", e => { if (e.button === 0) INPUT.fire = false; if (e.button === 2) { INPUT.aim = false; INPUT.dragging = false; } });
 document.addEventListener("pointerlockchange", () => INPUT.locked = document.pointerLockElement === canvasEl);
 addEventListener("mousemove", e => { if (INPUT.locked || INPUT.dragging) { INPUT.mdx += e.movementX; INPUT.mdy += e.movementY; } });
 canvasEl.addEventListener("wheel", e => { e.preventDefault(); INPUT.wheel += Math.sign(e.deltaY); }, { passive: false });
@@ -1507,7 +1534,7 @@ function initPlayer() {
 }
 function nearestEnterable() {
   let best = null, bd = 4.2;
-  for (const v of VEHICLES) { const d = Math.hypot(v.pos.x - PLAYER.pos.x, v.pos.z - PLAYER.pos.z); if (d < bd && speedOf(v) < 6) { bd = d; best = v; } }
+  for (const v of VEHICLES) { if (v.exploded) continue; const d = Math.hypot(v.pos.x - PLAYER.pos.x, v.pos.z - PLAYER.pos.z); if (d < bd && speedOf(v) < 6) { bd = d; best = v; } }
   return best;
 }
 function enterCar(car) {
@@ -1554,8 +1581,8 @@ function updatePlayer(dt) {
     const impact = stepCar(c, dt);
     if (impact > 4) { CAMERA.shake = Math.min(1, impact / 16); AUDIO.crash(Math.min(1, impact / 22)); }
     PLAYER.pos.set(c.pos.x, 0.18, c.pos.z);
-    if (c.health <= 0 && !c.burning) { c.burning = true; HUD.toast("차량이 크게 파손됐습니다! F로 내리세요"); }
-    if (c.burning) { c.throttle *= 0.3; }
+    if (c.health <= 0 && !c.burning && !c.exploded) { c.burning = 4.5; c.burnByPlayer = false; }
+    if (c.burning || c.exploded) { c.throttle *= 0.3; }
     return;
   }
   // on foot
@@ -1606,7 +1633,7 @@ function updatePlayer(dt) {
 // ---------------------------------------------------------------- wanted level
 function addHeat(n, why) {
   const before = PLAYER.stars;
-  PLAYER.heat = Math.min(CFG.wanted.maxStars + 0.99, PLAYER.heat + n);
+  PLAYER.heat = clamp(PLAYER.heat + n, 0, CFG.wanted.maxStars + 0.99);
   PLAYER.stars = Math.min(CFG.wanted.maxStars, Math.floor(PLAYER.heat));
   PLAYER.evade = 0;
   if (PLAYER.stars > before) { AUDIO.star(); HUD.toast(`수배 레벨 ${"★".repeat(PLAYER.stars)} · ${why}`, "warn"); }
@@ -1617,12 +1644,13 @@ function updateWanted(dt) {
   if (cops.length < want && Math.random() < dt * 0.8) spawnPolice();
   let nearest = 1e9;
   for (const c of cops) nearest = Math.min(nearest, Math.hypot(c.pos.x - PLAYER.pos.x, c.pos.z - PLAYER.pos.z));
+  nearest = Math.min(nearest, COMBAT.nearestOfficer());
   if (PLAYER.stars > 0) {
     if (nearest > CFG.wanted.evadeRadius) {
       PLAYER.evade += dt;
       if (PLAYER.evade > CFG.wanted.evadeSeconds) { PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.evade = 0; HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
     } else PLAYER.evade = 0;
-    const playerSpeed = PLAYER.car ? speedOf(PLAYER.car) : 0;
+    const playerSpeed = PLAYER.car ? speedOf(PLAYER.car) : Math.hypot(PLAYER.vel.x, PLAYER.vel.z);
     if (nearest < CFG.wanted.bustRadius && playerSpeed < 2) { PLAYER.bust += dt; if (PLAYER.bust > CFG.wanted.bustSeconds) GAME.busted(); }
     else PLAYER.bust = Math.max(0, PLAYER.bust - dt);
   }
@@ -1731,7 +1759,7 @@ const PICKUPS = (() => {
 const CAMERA = { cam: camera, yaw: Math.PI, pitch: 0.28, dist: 1, idle: 0, shake: 0, fov: 62, pos: new THREE.Vector3(), look: new THREE.Vector3() };
 function updateCamera(dt) {
   const inCar = !!PLAYER.car;
-  const sens = INPUT.locked ? 0.0022 : 0.005;
+  const sens = (INPUT.locked ? 0.0022 : 0.005) * (INPUT.aim ? 0.6 : 1);
   if (Math.abs(INPUT.mdx) + Math.abs(INPUT.mdy) > 0) { CAMERA.idle = 0; }
   CAMERA.yaw -= INPUT.mdx * sens; CAMERA.pitch = clamp(CAMERA.pitch + INPUT.mdy * sens, -0.25, 1.2);
   INPUT.mdx = INPUT.mdy = 0;
@@ -1748,15 +1776,17 @@ function updateCamera(dt) {
     target = new THREE.Vector3(c.pos.x, c.pos.y + 1.4, c.pos.z);
     CAMERA.fov = damp(CAMERA.fov, 62 + clamp(sp / 45, 0, 1) * 16, 3, dt);
   } else {
-    baseDist = 4.4; height = 1.55;
+    const aiming = INPUT.aim && PLAYER.weapon !== "fist";
+    CAMERA.aimBlend = damp(CAMERA.aimBlend || 0, aiming ? 1 : 0, 12, dt);
+    baseDist = lerp(4.4, 2.3, CAMERA.aimBlend); height = lerp(1.55, 1.62, CAMERA.aimBlend);
     target = new THREE.Vector3(PLAYER.pos.x, PLAYER.pos.y + height, PLAYER.pos.z);
-    CAMERA.fov = damp(CAMERA.fov, 60, 3, dt);
+    CAMERA.fov = damp(CAMERA.fov, aiming ? 46 : 60, 8, dt);
   }
   CAMERA.dist = clamp(CAMERA.dist + INPUT.wheel * 0.6, 0.6, 1.8); INPUT.wheel = 0;
   const dist = baseDist * CAMERA.dist / 1.0;
   const cp = Math.cos(CAMERA.pitch), sp2 = Math.sin(CAMERA.pitch);
   const want = new THREE.Vector3(target.x - Math.sin(CAMERA.yaw) * cp * dist, target.y + sp2 * dist + (inCar ? 0.6 : 0.25), target.z - Math.cos(CAMERA.yaw) * cp * dist);
-  if (!inCar) { const sideX = Math.cos(CAMERA.yaw) * -0.55, sideZ = -Math.sin(CAMERA.yaw) * -0.55; want.x += sideX; want.z += sideZ; target.x += sideX; target.z += sideZ; }
+  if (!inCar) { const sh = 0.55 + (CAMERA.aimBlend || 0) * 0.25, sideX = Math.cos(CAMERA.yaw) * -sh, sideZ = -Math.sin(CAMERA.yaw) * -sh; want.x += sideX; want.z += sideZ; target.x += sideX; target.z += sideZ; }
   const tHit = raycastBoxes(target.x, target.y, target.z, want.x, want.y, want.z);
   if (tHit < 1) want.lerpVectors(target, want, Math.max(0.12, tHit - 0.05));
   want.y = Math.max(want.y, CITY.groundHeight(want.x, want.z) + 0.4);
@@ -1764,7 +1794,12 @@ function updateCamera(dt) {
   if (CAMERA.pos.distanceTo(want) > 30) CAMERA.pos.copy(want);
   camera.position.copy(CAMERA.pos);
   if (CAMERA.shake > 0) { camera.position.x += rand(-1, 1) * CAMERA.shake * 0.3; camera.position.y += rand(-1, 1) * CAMERA.shake * 0.3; CAMERA.shake = Math.max(0, CAMERA.shake - dt * 2.5); }
-  camera.lookAt(target);
+  if (inCar) camera.lookAt(target);
+  else { // on foot look past the shoulder toward where the camera points, so the crosshair aims at the world, not the pavement
+    const lp = CAMERA.pitch - 0.16, far = 30;
+    const aimPt = new THREE.Vector3(target.x + Math.sin(CAMERA.yaw) * Math.cos(lp) * far, target.y - Math.sin(lp) * far, target.z + Math.cos(CAMERA.yaw) * Math.cos(lp) * far);
+    camera.lookAt(aimPt);
+  }
   if (Math.abs(camera.fov - CAMERA.fov) > 0.01) { camera.fov = CAMERA.fov; camera.updateProjectionMatrix(); }
 }
 // ---------------------------------------------------------------- post-processing
@@ -1861,7 +1896,9 @@ const HUD = (() => {
     g.fillStyle = color; g.beginPath(); g.arc(R + sx, R + sy, r, 0, TAU); g.fill();
     g.strokeStyle = "rgba(0,0,0,0.6)"; g.lineWidth = 1.5; g.stroke();
   }
+  let hurtT = 0;
   return {
+    hurt(k) { hurtT = Math.min(1, hurtT + k); },
     toast(msg, kind = "") {
       const d = document.createElement("div"); d.className = "toast " + kind; d.textContent = msg; toasts.appendChild(d);
       while (toasts.children.length > 3) toasts.firstChild.remove(); setTimeout(() => d.remove(), 3200);
@@ -1889,6 +1926,12 @@ const HUD = (() => {
       const starEls = $("stars").children, flash = PLAYER.evade > 0 && Math.floor(t * 3) % 2 === 0;
       for (let k = 0; k < 5; k++) starEls[k].className = k < PLAYER.stars ? (flash ? "on dim" : "on") : "";
       $("hp").style.width = clamp(PLAYER.health, 0, 100) + "%";
+      $("ar").style.width = clamp(PLAYER.armor, 0, 100) + "%"; $("arbar").hidden = PLAYER.armor <= 0;
+      const ws = WEAPONS[PLAYER.weapon], wa = PLAYER.arsenal[PLAYER.weapon];
+      $("wname").textContent = ws.name; $("wammo").textContent = ws.melee ? "" : (PLAYER.reload > 0 ? "재장전…" : `${wa.clip} / ${wa.reserve}`);
+      const showX = !ws.melee && !PLAYER.car && GAME.state === "play" || (PLAYER.car && !ws.melee && INPUT.aim);
+      $("cross").hidden = !showX; $("cross").classList.toggle("aim", INPUT.aim); $("cross").classList.toggle("hit", COMBAT.hitMarker > 0);
+      hurtT = Math.max(0, hurtT - dt * 1.6); $("hurt").style.opacity = hurtT.toFixed(2);
       const car = PLAYER.car;
       $("speedo").hidden = !car;
       if (car) {
@@ -1948,6 +1991,7 @@ const GAME = (() => {
         PLAYER.rig.root.visible = true; PLAYER.rig.root.rotation.set(0, 0, 0); PLAYER.downTimer = 0;
         PLAYER.pos.set(SPAWN.x, 0.18, SPAWN.z); PLAYER.vel.set(0, 0, 0); PLAYER.health = 100; PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.bust = 0;
         for (const v of [...VEHICLES]) if (v.type === "police") removeCar(v);
+        COMBAT.reset();
         grade.uniforms.flash.value.setRGB(0, 0, 0); state = "play"; CAMERA.pos.set(SPAWN.x, 5, SPAWN.z + 8);
       }
     },
@@ -2010,7 +2054,7 @@ function frame(now) {
   resolveContacts(dt);
   for (const p of PEDS) updatePed(p, dt);
   const nearestCop = updateWanted(dt);
-  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT);
+  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT); COMBAT.update(dt, clockT);
   LIGHTS.update(clockT);
   manageSpawns(dt);
   const env = updateDay(dt);
@@ -2027,7 +2071,7 @@ function frame(now) {
 }
 function boot() {
   buildWorld(); buildOcean(); buildNeon(); LIGHTS.build(); buildLightPools();
-  initPlayer(); spawnParked();
+  initPlayer(); spawnParked(); COMBAT.init();
   for (let k = 0; k < CFG.traffic.count; k++) spawnTrafficCar(PLAYER.pos);
   for (let k = 0; k < CFG.peds.count; k++) { const blk = CITY.blockAt(PLAYER.pos.x + rand(-60, 60), PLAYER.pos.z + rand(-60, 60)); if (blk && blk.type !== "harbor") spawnPed(blk); }
   resize();
@@ -2035,7 +2079,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }
@@ -2046,4 +2090,456 @@ $("play").addEventListener("click", () => { $("intro").hidden = true; started = 
 $("helpBtn").addEventListener("click", () => { $("intro").hidden = false; });
 document.addEventListener("keydown", e => { if (e.code === "KeyT" && started) { DAY.t = (DAY.t + 0.08) % 1; } if (e.code === "Escape" && !$("intro").hidden && started) $("intro").hidden = true; });
 setTimeout(boot, 30);
+// ---------------------------------------------------------------- combat: weapons, officers, fire & explosions, pickups
+// Mirrors Assets/NeonHarbor/Scripts/Core/Combat.cs (weapon specs, damage, armour, hit tests).
+const WEAPONS = {
+  fist:   { name: "주먹", melee: true, damage: 18, rate: 0.42, range: 1.7 },
+  pistol: { name: "권총", damage: 34, rate: 0.26, mag: 12, reload: 1.3, spread: 0.010, range: 140, start: 48 },
+  smg:    { name: "기관단총", damage: 19, rate: 0.085, mag: 30, reload: 1.8, spread: 0.028, range: 100, start: 120, auto: true },
+};
+const WEAPON_ORDER = ["fist", "pistol", "smg"];
+
+const COMBAT = (() => {
+  const P = PLAYER;
+  P.armor = 0; P.weapon = "fist"; P.cooldown = 0; P.reload = 0; P.aimHold = 0; P.punch = 0;
+  P.arsenal = { fist: { owned: true }, pistol: { owned: false, clip: 0, reserve: 0 }, smg: { owned: false, clip: 0, reserve: 0 } };
+  const OFFICERS = [];
+  let hitMarker = 0, gunfireHeatCd = 0, gunMesh = null;
+
+  // ---------- damage model (same rules as Core/Combat.cs)
+  function applyDamage(target, amount) { // target has health (+ optional armor); returns true when it drops to 0
+    if (target.armor > 0) { const absorbed = Math.min(target.armor, amount * 0.66); target.armor -= absorbed; amount -= absorbed; }
+    target.health -= amount;
+    return target.health <= 0;
+  }
+
+  // ---------- effects (pooled sprites)
+  function spriteTex(kind) {
+    const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d");
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    if (kind === "smoke") { grd.addColorStop(0, "rgba(255,255,255,0.75)"); grd.addColorStop(0.6, "rgba(255,255,255,0.35)"); grd.addColorStop(1, "rgba(255,255,255,0)"); }
+    else { grd.addColorStop(0, "rgba(255,255,255,1)"); grd.addColorStop(0.3, "rgba(255,255,255,0.7)"); grd.addColorStop(1, "rgba(255,255,255,0)"); }
+    g.fillStyle = grd; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+  }
+  const TEX_FIRE = spriteTex("fire"), TEX_SMOKE = spriteTex("smoke");
+  const FX = [];
+  function emit(kind, pos, vel, life, size, grow = 1) {
+    let s = FX.find(f => !f.alive && f.kind === kind);
+    if (!s) {
+      if (FX.length > 420) return;
+      const additive = kind !== "smoke" && kind !== "hit";
+      const mat = new THREE.SpriteMaterial({ map: kind === "smoke" ? TEX_SMOKE : TEX_FIRE, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: true });
+      s = { kind, sprite: new THREE.Sprite(mat), alive: false }; dynamic.add(s.sprite); FX.push(s);
+    }
+    const m = s.sprite.material;
+    if (kind === "fire") m.color.setRGB(4, 1.6, 0.4); else if (kind === "spark") m.color.setRGB(5, 3.5, 1.2);
+    else if (kind === "flash") m.color.setRGB(8, 6, 3); else if (kind === "hit") m.color.setRGB(0.35, 0.03, 0.03); else m.color.setRGB(0.18, 0.18, 0.2);
+    Object.assign(s, { alive: true, pos: pos.clone(), vel: vel.clone(), life, age: 0, size, grow });
+    s.sprite.visible = true;
+  }
+  function updateFX(dt) {
+    for (const s of FX) {
+      if (!s.alive) continue;
+      s.age += dt; if (s.age >= s.life) { s.alive = false; s.sprite.visible = false; continue; }
+      const k = s.age / s.life;
+      s.pos.addScaledVector(s.vel, dt);
+      if (s.kind === "spark" || s.kind === "hit") s.vel.y -= 9 * dt; else if (s.kind === "smoke") s.vel.multiplyScalar(1 - dt * 0.6);
+      s.sprite.position.copy(s.pos);
+      s.sprite.scale.setScalar(s.size * (1 + (s.grow - 1) * k));
+      s.sprite.material.opacity = s.kind === "smoke" ? 0.55 * (1 - k) : 1 - k;
+    }
+  }
+  const flashLight = new THREE.PointLight(0xffc070, 0, 14, 2); scene.add(flashLight);
+  const boomLight = new THREE.PointLight(0xff8a3c, 0, 60, 2); scene.add(boomLight);
+  const tracers = [];
+  function tracer(a, b) {
+    let t = tracers.find(x => !x.alive);
+    if (!t) {
+      const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+      t = { line: new THREE.Line(g, new THREE.LineBasicMaterial({ color: new THREE.Color(5, 4, 2.5), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })), alive: false };
+      scene.add(t.line); tracers.push(t);
+    }
+    const p = t.line.geometry.attributes.position; p.setXYZ(0, a.x, a.y, a.z); p.setXYZ(1, b.x, b.y, b.z); p.needsUpdate = true; t.line.geometry.computeBoundingSphere();
+    t.alive = true; t.age = 0; t.line.visible = true;
+  }
+
+  // ---------- weapon model in the player's hand
+  function buildGun() {
+    const g = new THREE.Group();
+    const dark = new THREE.MeshStandardMaterial({ color: col(0x1b1d20), roughness: 0.4, metalness: 0.8 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.2), dark); body.position.set(0, 0, 0.06); g.add(body);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.11, 0.05), dark); grip.position.set(0, -0.07, 0); grip.rotation.x = 0.25; g.add(grip);
+    const smgPart = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.07, 0.24), dark); smgPart.position.set(0, 0.0, 0.26); g.add(smgPart);
+    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.05), dark); mag.position.set(0, -0.1, 0.13); g.add(mag);
+    g.userData = { smgPart, mag };
+    g.rotation.x = Math.PI / 2; g.position.set(0, -0.46, 0.02);
+    P.rig.foreR.add(g);
+    return g;
+  }
+
+  // ---------- hit testing
+  const _ray = new THREE.Ray();
+  function rayVsCylinder(o, d, cx, cz, y0, y1, r) { // vertical capsule-ish cylinder
+    const ox = o.x - cx, oz = o.z - cz, a = d.x * d.x + d.z * d.z, b = 2 * (ox * d.x + oz * d.z), c = ox * ox + oz * oz - r * r;
+    if (a < 1e-8) return -1;
+    const disc = b * b - 4 * a * c; if (disc < 0) return -1;
+    const t = (-b - Math.sqrt(disc)) / (2 * a); if (t < 0) return -1;
+    const y = o.y + d.y * t; return y >= y0 && y <= y1 ? t : -1;
+  }
+  function rayVsCar(o, d, v) {
+    const s = Math.sin(-v.yaw), cc = Math.cos(-v.yaw); // into car-local space (local +z = forward)
+    const lx = o.x - v.pos.x, lz = o.z - v.pos.z, ox = lx * cc + lz * s, oz = -lx * s + lz * cc;
+    const dx = d.x * cc + d.z * s, dz = -d.x * s + d.z * cc;
+    const mn = [-v.spec.wid / 2, v.pos.y + 0.25, -v.spec.len / 2], mx = [v.spec.wid / 2, v.pos.y + 1.5, v.spec.len / 2];
+    const oo = [ox, o.y, oz], dd = [dx, d.y, dz]; let t0 = 0, t1 = 1e9;
+    for (let k = 0; k < 3; k++) {
+      if (Math.abs(dd[k]) < 1e-9) { if (oo[k] < mn[k] || oo[k] > mx[k]) return -1; continue; }
+      let ta = (mn[k] - oo[k]) / dd[k], tb = (mx[k] - oo[k]) / dd[k]; if (ta > tb) [ta, tb] = [tb, ta];
+      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); if (t0 > t1) return -1;
+    }
+    return t0;
+  }
+  // first thing hit along o + d·t, t ∈ (tMin, range)
+  function castShot(o, d, range, tMin, ignoreCar) {
+    let best = { t: range, kind: "none" };
+    const wall = raycastBoxes(o.x, o.y, o.z, o.x + d.x * range, o.y + d.y * range, o.z + d.z * range) * range;
+    if (wall < best.t) best = { t: wall, kind: "wall" };
+    if (d.y < -1e-4) { const tg = -o.y / d.y; if (tg > tMin && tg < best.t) best = { t: tg, kind: "ground" }; }
+    for (const p of PEDS) {
+      if (p.state === "gone" || p.state === "down" || p.state === "air") continue;
+      const t = rayVsCylinder(o, d, p.pos.x, p.pos.z, p.pos.y, p.pos.y + 1.8, 0.38);
+      if (t > tMin && t < best.t) best = { t, kind: "ped", ped: p };
+    }
+    for (const of of OFFICERS) {
+      if (of.down) continue;
+      const t = rayVsCylinder(o, d, of.pos.x, of.pos.z, of.pos.y, of.pos.y + 1.8, 0.38);
+      if (t > tMin && t < best.t) best = { t, kind: "officer", officer: of };
+    }
+    for (const v of VEHICLES) {
+      if (v === ignoreCar || v.exploded) continue;
+      if (Math.abs(v.pos.x - o.x) > range + 5 || Math.abs(v.pos.z - o.z) > range + 5) continue;
+      const t = rayVsCar(o, d, v);
+      if (t > tMin && t < best.t) best = { t, kind: "car", car: v };
+    }
+    return best;
+  }
+
+  // ---------- reactions
+  function scarePeds(at, radius, seconds = 6) {
+    for (const p of PEDS) if ((p.state === "walk" || p.state === "flee") && p.pos.distanceTo(at) < radius) { p.state = "flee"; p.timer = seconds; p.threat = at.clone(); }
+  }
+  function copNearby(r) {
+    for (const v of VEHICLES) if (v.type === "police" && !v.exploded && Math.hypot(v.pos.x - P.pos.x, v.pos.z - P.pos.z) < r) return true;
+    return OFFICERS.some(o => !o.down && o.pos.distanceTo(P.pos) < r);
+  }
+  function damagePed(p, amount, dir, byPlayer) {
+    p.health = p.health ?? 40;
+    p.health -= amount;
+    for (let k = 0; k < 3; k++) emit("hit", new THREE.Vector3(p.pos.x, p.pos.y + 1.2, p.pos.z), new THREE.Vector3(dir.x * 2 + rand(-1, 1), rand(0.5, 2), dir.z * 2 + rand(-1, 1)), 0.35, 0.18);
+    if (p.health <= 0) {
+      knockPed(p, dir.x * 3, dir.z * 3, false);
+      if (byPlayer) addHeat(1, "보행자 공격");
+    } else { p.state = "flee"; p.timer = 7; p.threat = P.pos.clone(); }
+  }
+  function damageCar(v, amount, byPlayer) {
+    v.health -= amount;
+    if (v.ai && v.ai.mode === "drive" && amount > 0) { v.ai.mode = "wreck"; } // drivers bail out of the lane when shot at
+    if (v.health <= 0 && !v.burning && !v.exploded) { v.burning = 4.5; v.burnByPlayer = byPlayer; }
+  }
+  function explode(v) {
+    v.exploded = true; v.burning = 0; v.health = 0;
+    const c = v.pos.clone(); c.y += 1;
+    AUDIO.explosion(); CAMERA.shake = Math.max(CAMERA.shake, clamp(1.2 - c.distanceTo(P.pos) / 40, 0.2, 1));
+    boomLight.position.copy(c); boomLight.intensity = 12;
+    for (let k = 0; k < 26; k++) emit("fire", c, new THREE.Vector3(rand(-6, 6), rand(1, 9), rand(-6, 6)), rand(0.5, 1.1), rand(1.2, 2.6), 2.2);
+    for (let k = 0; k < 20; k++) emit("smoke", c, new THREE.Vector3(rand(-2, 2), rand(2, 6), rand(-2, 2)), rand(2.5, 4.5), rand(2, 3.5), 3);
+    emit("flash", c, new THREE.Vector3(), 0.25, 9, 2);
+    // burnt shell
+    v.root.traverse(m => { if (m.isMesh && m.material && m.material.isMeshPhysicalMaterial) m.material = BURNT; });
+    v.vel.x += rand(-2, 2); v.vel.y += rand(-2, 2); v.yawRate += rand(-2, 2); v.body.position.y = 0.25; v.body.rotation.z = rand(-0.15, 0.15);
+    if (v.ai) v.ai.mode = "parked";
+    if (v.driverMesh && v !== P.car) { v.body.remove(v.driverMesh.root); v.driverMesh = null; }
+    // blast
+    const R = 8;
+    for (const p of PEDS) { const d = p.pos.distanceTo(c); if (d < R && p.state !== "down") knockPed(p, (p.pos.x - c.x) / d * 9, (p.pos.z - c.z) / d * 9, false); }
+    for (const o of OFFICERS) { const d = o.pos.distanceTo(c); if (d < R) hurtOfficer(o, 120 * (1 - d / R), false); }
+    for (const w of VEHICLES) { if (w === v || w.exploded) continue; const d = w.pos.distanceTo(v.pos); if (d < R) { damageCar(w, 70 * (1 - d / R), v.burnByPlayer); w.vel.x += (w.pos.x - v.pos.x) / d * 6; w.vel.y += (w.pos.z - v.pos.z) / d * 6; } }
+    const pd = c.distanceTo(P.pos);
+    if (pd < R) {
+      if (P.car === v) { P.health = 0; }
+      else if (P.car) { damageCar(P.car, 60 * (1 - pd / R), true); }
+      else { applyDamage(P, 110 * (1 - pd / R)); P.knock((P.pos.x - c.x) / pd * 8, (P.pos.z - c.z) / pd * 8, 6); }
+      HUD.hurt(1);
+    }
+    scarePeds(c, 60, 8);
+    if (v.burnByPlayer) addHeat(1, "차량 폭발");
+  }
+  const BURNT = new THREE.MeshStandardMaterial({ color: col(0x161412), roughness: 0.95, metalness: 0.2 });
+
+  // ---------- officers on foot
+  function spawnOfficersFrom(car) {
+    car.unloaded = true;
+    const f = forwardOf(car), side = new THREE.Vector2(-f.y, f.x);
+    for (const s of [1, -1]) {
+      const rig = makeHuman({ top: 0x1d2a44, bottom: 0x1d2a44, skin: pick(SKIN), hair: 0x111111 });
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.08, 14), new THREE.MeshStandardMaterial({ color: col(0x141a26), roughness: 0.6 }));
+      cap.position.set(0, 0.11, 0); rig.head.add(cap);
+      const gun = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.2), new THREE.MeshStandardMaterial({ color: col(0x1b1d20), roughness: 0.4, metalness: 0.8 }));
+      gun.rotation.x = Math.PI / 2; gun.position.set(0, -0.46, 0.06); rig.foreR.add(gun);
+      dynamic.add(rig.root);
+      const pos = new THREE.Vector3(car.pos.x + side.x * s * 1.9, 0.1, car.pos.z + side.y * s * 1.9);
+      OFFICERS.push({ rig, pos, yaw: car.yaw, health: 60, armor: 0, down: false, downT: 0, cd: rand(0.4, 1.2), vel: new THREE.Vector3() });
+    }
+    if (car.driverMesh) { car.body.remove(car.driverMesh.root); car.driverMesh = null; }
+    car.ai.mode = "parked"; car.throttle = 0; car.brake = 1;
+  }
+  function hurtOfficer(o, amount, byPlayer) {
+    if (o.down) return;
+    for (let k = 0; k < 3; k++) emit("hit", new THREE.Vector3(o.pos.x, o.pos.y + 1.2, o.pos.z), new THREE.Vector3(rand(-1, 1), rand(0.5, 2), rand(-1, 1)), 0.35, 0.18);
+    if (applyDamage(o, amount)) {
+      o.down = true; o.downT = 14; o.rig.root.rotation.set(-Math.PI / 2, o.yaw, 0, "YXZ"); o.pos.y = CITY.groundHeight(o.pos.x, o.pos.z) + 0.12;
+      if (byPlayer) addHeat(1, "경찰관 공격");
+      // drop ammo
+      dropPickup("ammo", o.pos.clone());
+    } else if (byPlayer && P.stars < 2) addHeat(2 - P.heat + 0.01, "경찰관 공격");
+  }
+  function lineOfSight(a, b) { return raycastBoxes(a.x, a.y, a.z, b.x, b.y, b.z) >= 0.999; }
+  function updateOfficers(dt) {
+    for (let k = OFFICERS.length - 1; k >= 0; k--) {
+      const o = OFFICERS[k];
+      if (o.down) { o.downT -= dt; if (o.downT < 0 || o.pos.distanceTo(P.pos) > 150) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); } else o.rig.root.position.copy(o.pos); continue; }
+      if (P.stars === 0 && o.pos.distanceTo(P.pos) > 60) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); continue; }
+      const tgt = P.car ? P.car.pos : P.pos, d = Math.hypot(tgt.x - o.pos.x, tgt.z - o.pos.z);
+      const eye = new THREE.Vector3(o.pos.x, o.pos.y + 1.5, o.pos.z), aimAt = new THREE.Vector3(tgt.x, (P.car ? 0.9 : P.pos.y + 1.2), tgt.z);
+      const los = d < 70 && lineOfSight(eye, aimAt);
+      const want = Math.atan2(tgt.x - o.pos.x, tgt.z - o.pos.z);
+      o.yaw += angDiff(o.yaw, want) * (1 - Math.exp(-10 * dt));
+      const shooting = P.stars >= 2 && los && d < 32 && P.alive && GAME.state === "play";
+      let speed = 0;
+      if (P.stars === 0) speed = 0;
+      else if (!shooting || d > 16) speed = d > 3 ? CFG.player.run * 0.85 : 0;
+      o.vel.x = damp(o.vel.x, Math.sin(o.yaw) * speed, 10, dt); o.vel.z = damp(o.vel.z, Math.cos(o.yaw) * speed, 10, dt);
+      o.pos.x += o.vel.x * dt; o.pos.z += o.vel.z * dt;
+      const c = { x: o.pos.x, z: o.pos.z }; collideCircle(c, 0.4); o.pos.x = c.x; o.pos.z = c.z;
+      o.pos.y = CITY.groundHeight(o.pos.x, o.pos.z);
+      o.rig.root.position.copy(o.pos); o.rig.root.rotation.set(0, o.yaw, 0);
+      animateHuman(o.rig, Math.hypot(o.vel.x, o.vel.z), dt);
+      if (shooting) {
+        o.rig.armR.rotation.x = -Math.PI / 2 + 0.1; o.rig.foreR.rotation.x = 0; o.rig.armL.rotation.x = -1.2;
+        o.cd -= dt;
+        if (o.cd <= 0) {
+          o.cd = rand(0.55, 1.0);
+          const muzzle = new THREE.Vector3(o.pos.x + Math.sin(o.yaw) * 0.6, o.pos.y + 1.45, o.pos.z + Math.cos(o.yaw) * 0.6);
+          const moving = P.car ? speedOf(P.car) : Math.hypot(P.vel.x, P.vel.z);
+          const chance = clamp(0.55 - d * 0.012 - moving * 0.012, 0.08, 0.55);
+          const hit = Math.random() < chance;
+          const end = hit ? aimAt.clone() : aimAt.clone().add(new THREE.Vector3(rand(-2, 2), rand(-0.5, 1.5), rand(-2, 2)));
+          tracer(muzzle, end); emit("flash", muzzle, new THREE.Vector3(), 0.06, 0.5);
+          flashLight.position.copy(muzzle); flashLight.intensity = 3;
+          AUDIO.shot(clamp(1 - d / 60, 0.15, 0.8), false);
+          if (hit) {
+            if (P.car) damageCar(P.car, 6, false);
+            else { applyDamage(P, 7); HUD.hurt(0.5); }
+          } else emit("spark", end, new THREE.Vector3(rand(-1, 1), 2, rand(-1, 1)), 0.25, 0.12);
+        }
+      }
+    }
+  }
+
+  // ---------- pickups (weapons, ammo, health, armour)
+  const PICKS = [];
+  const PICK_STYLE = { pistol: [3, 2.4, 0.4], smg: [3, 1.3, 0.2], ammo: [2.6, 2.2, 0.6], health: [0.4, 3.2, 0.6], armor: [0.4, 1.4, 4] };
+  function pickupMesh(kind) {
+    const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: new THREE.Color(...PICK_STYLE[kind]) });
+    if (kind === "health") { g.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.16), m)); g.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), m)); }
+    else if (kind === "armor") { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.42, 6), m); g.add(s); }
+    else if (kind === "ammo") { for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), m); b.position.x = (k - 1) * 0.13; g.add(b); } }
+    else { const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, kind === "smg" ? 0.62 : 0.34), m); g.add(b); const gr = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.2, 0.1), m); gr.position.set(0, -0.14, kind === "smg" ? -0.12 : -0.08); g.add(gr); }
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.03, 6, 32), m); ring.rotation.x = Math.PI / 2; ring.position.y = -0.75; g.add(ring);
+    MARKERS.add(g); return g;
+  }
+  function dropPickup(kind, pos, respawn = 0) {
+    const mesh = pickupMesh(kind); mesh.position.set(pos.x, CITY.groundHeight(pos.x, pos.z) + 0.85, pos.z);
+    PICKS.push({ kind, mesh, home: respawn ? pos.clone() : null, respawn, wait: 0 });
+  }
+  function placeWorldPickups() {
+    const S = SPAWN;
+    dropPickup("pistol", new THREE.Vector3(S.x - 6, 0.18, S.z + 1.2), 30);
+    dropPickup("health", new THREE.Vector3(S.x + 6, 0.18, S.z + 1.2), 30);
+    const spots = [["smg", 4.5, 2.5], ["armor", 2.5, 3.5], ["ammo", 5.5, 4.5], ["pistol", 1.5, 1.5], ["health", 6.5, 6.5], ["ammo", 2.5, 6.5], ["armor", 6.5, 2.5], ["smg", 1.5, 5.5]];
+    for (const [kind, bi, bj] of spots) {
+      const blk = CITY.blockAt(bi * CITY.PITCH, bj * CITY.PITCH) || CITY.blocks[0];
+      const q = pedPathPoint(blk, 0.13); dropPickup(kind, new THREE.Vector3(q[0], 0.18, q[1]), 45);
+    }
+  }
+  function takePickup(p) {
+    const A = P.arsenal;
+    if (p.kind === "pistol" || p.kind === "smg") {
+      const w = A[p.kind], spec = WEAPONS[p.kind];
+      if (!w.owned) { w.owned = true; w.clip = spec.mag; w.reserve = spec.start - spec.mag; P.weapon = p.kind; HUD.toast(`${spec.name} 획득 — 우클릭 조준, 좌클릭 사격`, "good"); }
+      else { w.reserve += spec.mag * 2; HUD.toast(`${spec.name} 탄약 +${spec.mag * 2}`, "good"); }
+    } else if (p.kind === "ammo") {
+      let any = false; for (const k of ["pistol", "smg"]) if (A[k].owned) { A[k].reserve += WEAPONS[k].mag * 2; any = true; }
+      if (!any) return false; HUD.toast("탄약 보충", "good");
+    } else if (p.kind === "health") { if (P.health >= 100) return false; P.health = 100; HUD.toast("체력 회복", "good"); }
+    else if (p.kind === "armor") { if (P.armor >= 100) return false; P.armor = 100; HUD.toast("방탄복 착용", "good"); }
+    AUDIO.cash(); return true;
+  }
+  function updatePickups(dt, t) {
+    for (let k = PICKS.length - 1; k >= 0; k--) {
+      const p = PICKS[k];
+      if (p.wait > 0) { p.wait -= dt; if (p.wait <= 0) p.mesh.visible = true; continue; }
+      p.mesh.rotation.y += dt * 2; p.mesh.children.forEach(c => { if (c.geometry.type === "TorusGeometry") c.rotation.z = t; });
+      p.mesh.position.y = CITY.groundHeight(p.mesh.position.x, p.mesh.position.z) + 0.85 + Math.sin(t * 3 + k) * 0.08;
+      if (!P.car && Math.hypot(p.mesh.position.x - P.pos.x, p.mesh.position.z - P.pos.z) < 1.3 && takePickup(p)) {
+        if (p.respawn) { p.mesh.visible = false; p.wait = p.respawn; } else { MARKERS.remove(p.mesh); PICKS.splice(k, 1); }
+      }
+    }
+  }
+
+  // ---------- player weapons
+  function cycle(dir) {
+    let i = WEAPON_ORDER.indexOf(P.weapon);
+    for (let n = 0; n < 3; n++) { i = (i + dir + 3) % 3; if (P.arsenal[WEAPON_ORDER[i]].owned) break; }
+    P.weapon = WEAPON_ORDER[i]; P.reload = 0;
+  }
+  function startReload() {
+    const w = P.arsenal[P.weapon], spec = WEAPONS[P.weapon];
+    if (spec.melee || P.reload > 0 || w.clip >= spec.mag || w.reserve <= 0) return;
+    P.reload = spec.reload; AUDIO.click(true);
+  }
+  function aimRay() {
+    const o = camera.position.clone(), d = new THREE.Vector3(); camera.getWorldDirection(d); return { o, d };
+  }
+  function fire() {
+    const spec = WEAPONS[P.weapon], w = P.arsenal[P.weapon];
+    if (spec.melee) return punch();
+    if (P.reload > 0) return;
+    if (w.clip <= 0) { if (w.reserve > 0) startReload(); else { AUDIO.click(false); P.cooldown = 0.3; } return; }
+    w.clip--; P.cooldown = spec.rate; P.aimHold = 1.2;
+    const { o, d } = aimRay();
+    const aiming = INPUT.aim;
+    const spread = spec.spread * (aiming ? 1 : 2.2) * (Math.hypot(P.vel.x, P.vel.z) > 3 ? 1.6 : 1);
+    d.x += rand(-spread, spread); d.y += rand(-spread, spread); d.z += rand(-spread, spread); d.normalize();
+    // touch: soft auto-aim at the nearest target in a 12° cone
+    if (matchMedia("(hover: none)").matches) {
+      let best = null, bestDot = Math.cos(0.21);
+      const cand = [...PEDS.filter(p => p.state === "walk" || p.state === "flee").map(p => p.pos), ...OFFICERS.filter(x => !x.down).map(x => x.pos)];
+      for (const p of cand) { const v = new THREE.Vector3(p.x, p.y + 1.2, p.z).sub(o); const dist = v.length(); v.normalize(); const dt2 = v.dot(d); if (dist < 45 && dt2 > bestDot) { bestDot = dt2; best = v; } }
+      if (best) d.copy(best);
+    }
+    const startT = o.distanceTo(P.car ? P.car.pos : P.pos) - 0.2; // ignore everything between camera and player
+    const hit = castShot(o, d, spec.range + startT, Math.max(0.5, startT), P.car);
+    const end = o.clone().addScaledVector(d, hit.t);
+    const muzzle = P.car ? new THREE.Vector3(P.car.pos.x, 1.3, P.car.pos.z) : new THREE.Vector3(); if (!P.car) P.rig.foreR.localToWorld(muzzle.set(0, -0.5, 0.42));
+    tracer(muzzle, end); emit("flash", muzzle, new THREE.Vector3(), 0.05, P.weapon === "smg" ? 0.55 : 0.45);
+    flashLight.position.copy(muzzle); flashLight.intensity = 4;
+    AUDIO.shot(1, P.weapon === "smg");
+    CAMERA.shake = Math.max(CAMERA.shake, P.weapon === "smg" ? 0.08 : 0.14);
+    const dir = d.clone(); dir.y = 0; dir.normalize();
+    if (hit.kind === "ped") { damagePed(hit.ped, spec.damage, dir, true); hitMarker = 0.18; }
+    else if (hit.kind === "officer") { hurtOfficer(hit.officer, spec.damage, true); hitMarker = 0.18; }
+    else if (hit.kind === "car") { damageCar(hit.car, spec.damage * 0.7, true); hitMarker = 0.12; for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1); if (hit.car.type === "police") addHeat(1, "경찰차 사격"); }
+    else if (hit.kind !== "none") for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1);
+    // gunfire is noticed
+    scarePeds(P.pos, 45);
+    if (gunfireHeatCd <= 0 && copNearby(55)) { addHeat(1, "총기 사용"); gunfireHeatCd = 6; }
+    if (w.clip === 0 && w.reserve > 0) startReload();
+  }
+  function punch() {
+    P.cooldown = WEAPONS.fist.rate; P.punch = 0.25;
+    const f = new THREE.Vector2(Math.sin(P.yaw), Math.cos(P.yaw));
+    let target = null, best = WEAPONS.fist.range;
+    for (const p of PEDS) {
+      if (p.state !== "walk" && p.state !== "flee") continue;
+      const dx = p.pos.x - P.pos.x, dz = p.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+      if (d < best && (dx * f.x + dz * f.y) / Math.max(d, 1e-3) > 0.5) { best = d; target = p; }
+    }
+    let officer = null;
+    for (const o of OFFICERS) { if (o.down) continue; const dx = o.pos.x - P.pos.x, dz = o.pos.z - P.pos.z, d = Math.hypot(dx, dz); if (d < best && (dx * f.x + dz * f.y) / Math.max(d, 1e-3) > 0.5) { best = d; officer = o; target = null; } }
+    AUDIO.swing();
+    if (target) {
+      AUDIO.thud(0.5); hitMarker = 0.15;
+      target.health = (target.health ?? 40) - WEAPONS.fist.damage;
+      if (target.health <= 0) { knockPed(target, f.x * 3, f.y * 3, false); addHeat(0.5, "폭행"); }
+      else { target.state = "flee"; target.timer = 6; target.threat = P.pos.clone(); target.pos.x += f.x * 0.4; target.pos.z += f.y * 0.4; addHeat(0.25, "폭행"); }
+      if (copNearby(30)) addHeat(1, "경찰 앞에서 폭행");
+    } else if (officer) { AUDIO.thud(0.5); hitMarker = 0.15; hurtOfficer(officer, WEAPONS.fist.damage, true); }
+  }
+
+  function updatePlayerWeapons(dt) {
+    if (!gunMesh) gunMesh = buildGun();
+    if (INPUT.pressed.has("Digit1")) { P.weapon = "fist"; P.reload = 0; }
+    if (INPUT.pressed.has("Digit2") && P.arsenal.pistol.owned) { P.weapon = "pistol"; P.reload = 0; }
+    if (INPUT.pressed.has("Digit3") && P.arsenal.smg.owned) { P.weapon = "smg"; P.reload = 0; }
+    if (INPUT.pressed.has("KeyQ") || INPUT.pressed.has("WeaponNext")) cycle(1);
+    if (INPUT.pressed.has("KeyR")) startReload();
+    P.cooldown -= dt; P.aimHold -= dt; P.punch -= dt; gunfireHeatCd -= dt; hitMarker -= dt;
+    if (P.reload > 0) {
+      P.reload -= dt;
+      if (P.reload <= 0) { const w = P.arsenal[P.weapon], spec = WEAPONS[P.weapon]; const n = Math.min(spec.mag - w.clip, w.reserve); w.clip += n; w.reserve -= n; AUDIO.click(true); }
+    }
+    const spec = WEAPONS[P.weapon];
+    const canAct = GAME.state === "play" && P.downTimer <= 0 && $("intro").hidden;
+    const held = INPUT.fire || isDown("Fire"), pressedNow = INPUT.firePressed || INPUT.pressed.has("Fire");
+    const trigger = spec.auto ? held : pressedNow;
+    if (canAct && trigger && P.cooldown <= 0 && !(P.car && spec.melee)) fire();
+    INPUT.firePressed = false;
+    // visuals: gun model + aim pose (on foot)
+    gunMesh.visible = !spec.melee;
+    gunMesh.userData.smgPart.visible = P.weapon === "smg"; gunMesh.userData.mag.visible = P.weapon === "smg";
+    if (!P.car && P.downTimer <= 0) {
+      const aiming = !spec.melee && (INPUT.aim || P.aimHold > 0);
+      if (aiming) {
+        P.yaw += angDiff(P.yaw, CAMERA.yaw) * (1 - Math.exp(-18 * dt));
+        const r = P.rig; const pitch = -CAMERA.pitch * 0.8;
+        r.armR.rotation.set(-Math.PI / 2 + pitch, 0, -0.12); r.foreR.rotation.set(0, 0, 0);
+        r.armL.rotation.set(-Math.PI / 2 + pitch + 0.1, 0, 0.5); r.foreL.rotation.set(-0.25, 0, 0);
+        if (P.reload > 0) { r.armL.rotation.x = -0.6; r.foreL.rotation.x = -1.4; }
+      } else if (P.punch > 0) {
+        const k = P.punch / 0.25; P.rig.armR.rotation.set(-Math.PI / 2 * Math.sin(k * Math.PI), 0, 0.2); P.rig.foreR.rotation.set(-0.3 * k, 0, 0);
+      }
+    }
+  }
+
+  function updateBurning(dt) {
+    for (const v of VEHICLES) {
+      if (!v.burning || v.exploded) continue;
+      v.burning -= dt;
+      const eng = new THREE.Vector3(v.pos.x + Math.sin(v.yaw) * v.spec.len * 0.35, 1.1, v.pos.z + Math.cos(v.yaw) * v.spec.len * 0.35);
+      if (Math.random() < dt * 30) emit("fire", eng, new THREE.Vector3(rand(-0.5, 0.5), rand(1.5, 3), rand(-0.5, 0.5)), 0.5, 0.8, 1.6);
+      if (Math.random() < dt * 14) emit("smoke", eng, new THREE.Vector3(rand(-0.5, 0.5), rand(2, 4), rand(-0.5, 0.5)), 2.5, 1.2, 3);
+      if (v === P.car && Math.floor(v.burning * 2) !== Math.floor((v.burning + dt) * 2)) HUD.toast("차에 불이 붙었습니다! F로 내리세요", "warn");
+      if (v.burning <= 0) explode(v);
+    }
+    // smoking wrecks after explosion
+    for (const v of VEHICLES) if (v.exploded && Math.random() < dt * 4) emit("smoke", new THREE.Vector3(v.pos.x, 1, v.pos.z), new THREE.Vector3(rand(-0.3, 0.3), rand(1.5, 3), rand(-0.3, 0.3)), 3, 1.2, 3);
+  }
+
+  return {
+    OFFICERS,
+    init() { placeWorldPickups(); },
+    get hitMarker() { return hitMarker; },
+    nearestOfficer() { let n = 1e9; for (const o of OFFICERS) if (!o.down) n = Math.min(n, o.pos.distanceTo(P.pos)); return n; },
+    update(dt, t) {
+      updatePlayerWeapons(dt);
+      // police leave their cars to fight on foot once they're close
+      if (P.stars >= 2) for (const v of VEHICLES) {
+        if (v.type !== "police" || v.unloaded || !v.ai || v.ai.mode !== "police" || v.exploded) continue;
+        const d = Math.hypot(v.pos.x - P.pos.x, v.pos.z - P.pos.z);
+        if (d < (P.car ? 14 : 26) && speedOf(v) < (P.car ? 3 : 9)) spawnOfficersFrom(v);
+      }
+      updateOfficers(dt); updateBurning(dt); updatePickups(dt, t); updateFX(dt);
+      for (const tr of tracers) if (tr.alive) { tr.age += dt; tr.line.material.opacity = 1 - tr.age / 0.07; if (tr.age > 0.07) { tr.alive = false; tr.line.visible = false; } }
+      flashLight.intensity = Math.max(0, flashLight.intensity - dt * 60);
+      boomLight.intensity = Math.max(0, boomLight.intensity - dt * 14);
+    },
+    reset() {
+      for (const o of OFFICERS) dynamic.remove(o.rig.root); OFFICERS.length = 0;
+      P.armor = 0; P.reload = 0;
+    },
+    damageCar, explode,
+    debugCast() { const { o, d } = aimRay(); const startT = o.distanceTo(P.pos) - 0.2; const h = castShot(o, d, 200, Math.max(0.5, startT), P.car); return { kind: h.kind, t: h.t, o: o.toArray(), d: d.toArray(), startT }; },
+  };
+})();
 </script>

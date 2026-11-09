@@ -20,5 +20,9 @@ images of the same map.
 - Night carries the look: emissive windows, neon, additive light pools under street
   lamps and headlight cones on the road, plus bloom.
 - The orbit camera needs tree/lamp colliders or it ends up inside foliage.
+- Aiming from a third-person camera that looks *at* the player's head puts the crosshair
+  on the pavement; on foot the camera now looks past the shoulder along its pitch.
+- Officers who leave their cars and fight on foot make 2+ stars feel dangerous; car fires
+  with a short fuse before the explosion give the player time to bail out.
 
 Evidence: `production/qa/evidence/neon-harbor-web/`.

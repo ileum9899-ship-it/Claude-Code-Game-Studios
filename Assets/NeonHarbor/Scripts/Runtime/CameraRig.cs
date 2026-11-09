@@ -21,6 +21,9 @@ namespace NeonHarbor.Runtime
         public float Pitch = 0.28f;
         /// <summary>Shake strength 0..1 (decays).</summary>
         public float Shake;
+        /// <summary>Aim mode (closer, narrower, slower) — set by combat each frame.</summary>
+        public bool Aim;
+        private float aimBlend;
 
         /// <summary>Wraps a camera.</summary>
         public CameraRig(Camera cam, CityLayout city) { this.cam = cam; this.city = city; }
@@ -33,7 +36,8 @@ namespace NeonHarbor.Runtime
         {
             float mx = mouseLook ? Input.GetAxisRaw("Mouse X") : 0, my = mouseLook ? Input.GetAxisRaw("Mouse Y") : 0;
             if (Mathf.Abs(mx) + Mathf.Abs(my) > 0.001f) idle = 0;
-            Yaw += mx * 0.045f; Pitch = Mathf.Clamp(Pitch - my * 0.03f, -0.25f, 1.2f);
+            float sens = Aim ? 0.6f : 1f;
+            Yaw += mx * 0.045f * sens; Pitch = Mathf.Clamp(Pitch - my * 0.03f * sens, -0.25f, 1.2f);
             zoom = Mathf.Clamp(zoom - Input.mouseScrollDelta.y * 0.08f, 0.6f, 1.8f);
             idle += dt;
             Vector3 target; float dist; bool inCar = player.Car != null;
@@ -52,13 +56,15 @@ namespace NeonHarbor.Runtime
             }
             else
             {
-                dist = 4.4f * zoom; target = player.Position + Vector3.up * 1.55f;
-                fov = Mathx.Damp(fov, 58, 3, dt);
+                aimBlend = Mathx.Damp(aimBlend, Aim ? 1 : 0, 12, dt);
+                dist = Mathf.Lerp(4.4f * zoom, 2.3f, aimBlend); target = player.Position + Vector3.up * Mathf.Lerp(1.55f, 1.62f, aimBlend);
+                fov = Mathx.Damp(fov, Aim ? 46 : 58, 8, dt);
             }
             float cp = Mathf.Cos(Pitch), spch = Mathf.Sin(Pitch);
             Vector3 fwd = new Vector3(Mathf.Sin(Yaw), 0, Mathf.Cos(Yaw)), right = new Vector3(Mathf.Cos(Yaw), 0, -Mathf.Sin(Yaw));
             Vector3 want = target - fwd * cp * dist + Vector3.up * (spch * dist + (inCar ? 0.6f : 0.25f));
-            if (!inCar) { want += right * 0.55f; target += right * 0.55f; } // over the right shoulder
+            float shoulder = 0.55f + aimBlend * 0.25f;
+            if (!inCar) { want += right * shoulder; target += right * shoulder; } // over the right shoulder
             float t = city.Raycast(target.x, target.y, target.z, want.x, want.y, want.z);
             if (t < 1) want = Vector3.Lerp(target, want, Mathf.Max(0.12f, t - 0.05f));
             want.y = Mathf.Max(want.y, city.GroundHeight(want.x, want.z) + 0.4f);
@@ -67,7 +73,14 @@ namespace NeonHarbor.Runtime
             Vector3 p = pos;
             if (Shake > 0) { p += Random.insideUnitSphere * Shake * 0.3f; Shake = Mathf.Max(0, Shake - dt * 2.5f); }
             cam.transform.position = p;
-            cam.transform.rotation = Quaternion.LookRotation(target - p, Vector3.up);
+            if (inCar) cam.transform.rotation = Quaternion.LookRotation(target - p, Vector3.up);
+            else
+            {
+                // on foot, look past the shoulder along the camera pitch so the crosshair aims at the world, not the pavement
+                float lp = Pitch - 0.16f;
+                Vector3 aimPoint = target + new Vector3(Mathf.Sin(Yaw) * Mathf.Cos(lp), -Mathf.Sin(lp), Mathf.Cos(Yaw) * Mathf.Cos(lp)) * 30f;
+                cam.transform.rotation = Quaternion.LookRotation(aimPoint - p, Vector3.up);
+            }
             cam.fieldOfView = fov;
         }
     }

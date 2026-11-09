@@ -19,6 +19,9 @@ namespace NeonHarbor.Runtime
         public VehicleInput Input;
         public float Health = 100f, Height, Roll, Pitch, WheelSpin;
         public bool Braking;
+        /// <summary>Seconds until a burning car explodes (0 = not burning).</summary>
+        public float Burning;
+        public bool BurnByPlayer, Exploded, Unloaded;
         public HumanRig Driver;
 
         // traffic AI

@@ -218,7 +218,7 @@ function spawnPed(blk, t) {
 }
 function removePed(p) { dynamic.remove(p.h.root); PEDS.splice(PEDS.indexOf(p), 1); }
 function knockPed(p, vx, vz, byPlayer) {
-  if (p.state === "down" || p.state === "air") return;
+  if (p.state === "down" || p.state === "air" || p.state === "gone") return;
   p.state = "air"; p.timer = 12;
   p.vel.set(vx * 1.05 + rand(-1, 1), 3 + Math.hypot(vx, vz) * 0.22, vz * 1.05 + rand(-1, 1));
   p.spin = rand(-8, 8);

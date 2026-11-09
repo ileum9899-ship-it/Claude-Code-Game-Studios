@@ -9,7 +9,7 @@ namespace NeonHarbor.Runtime
     public sealed class Pedestrian
     {
         public enum State { Walk, Flee, Air, Down, Gone }
-        public HumanRig Rig; public Block Block; public float T, Dir = 1, Speed, Timer, Yaw, Spin; public State Mode;
+        public HumanRig Rig; public Block Block; public float T, Dir = 1, Speed, Timer, Yaw, Spin, Health = 40; public State Mode;
         public Vector3 Pos, Vel; public Vector3 Threat;
     }
 
@@ -342,7 +342,7 @@ namespace NeonHarbor.Runtime
         /// <summary>Knocks a pedestrian flying.</summary>
         public void Knock(Pedestrian p, float vx, float vz, bool byPlayer)
         {
-            if (p.Mode == Pedestrian.State.Down || p.Mode == Pedestrian.State.Air) return;
+            if (p.Mode == Pedestrian.State.Down || p.Mode == Pedestrian.State.Air || p.Mode == Pedestrian.State.Gone) return;
             p.Mode = Pedestrian.State.Air; p.Timer = 12;
             p.Vel = new Vector3(vx * 1.05f + R(-1, 1), 3 + Mathf.Sqrt(vx * vx + vz * vz) * 0.22f, vz * 1.05f + R(-1, 1));
             p.Spin = R(-8, 8);

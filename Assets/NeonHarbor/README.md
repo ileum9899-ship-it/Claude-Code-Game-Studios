@@ -36,6 +36,10 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 | `F` / `Enter` | get in the nearest car (steal it if occupied) | get out (below ~15 km/h) |
 | Mouse | orbit camera (click to lock the cursor, `Esc` to free it) | same; camera swings behind the car |
 | Wheel | camera distance | camera distance |
+| Left click | fire / punch | fire forward (pistol, SMG) |
+| Right click (hold) | aim over the shoulder | — |
+| `1` `2` `3` / `Q` | fists / pistol / SMG / next weapon | same |
+| `R` | reload | reload |
 | `H` | — | horn |
 | `T` | skip time of day forward | same |
 
@@ -50,6 +54,13 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 - Wanted level ★–★★★★★: hitting people, stealing occupied cars, ramming or stealing
   police cars. Police route through the street grid, then ram you. Stay 85 m away from
   every cop for 9 s to lose them; stop next to one for 2.5 s and you're arrested.
+- Combat: fists, pistol (semi-auto, 12-round magazine) and SMG (automatic, 30 rounds)
+  with hitscan aiming, tracers, muzzle flashes and hit markers. Guns, ammo, health and
+  armour are pickups on the sidewalks. Shot or punched people fall and fade out (no gore).
+  Cars take bullet damage, catch fire and explode, hurting everything within 8 m.
+- At two or more stars, police leave their cars near you and fight on foot; their
+  accuracy drops with distance and with how fast you move. Gunfire near police, hurting
+  people or officers, shooting police cars and causing explosions all raise the wanted level.
 - Jobs at the yellow light beams: courier delivery, 7-checkpoint street race, and
   "get 2 stars and escape". Green cash pickups on sidewalks.
 - Day/night cycle (12 real minutes per day): procedural sky, golden hour, lit windows,
@@ -59,12 +70,12 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 
 | Path | Assembly | What |
 |---|---|---|
-| `Scripts/Core/` | `NeonHarbor.Core` (no engine refs) | City layout + road graph + collision, vehicle model, traffic lights, wanted level, missions, config DTO, RNG |
+| `Scripts/Core/` | `NeonHarbor.Core` (no engine refs) | City layout + road graph + collision, vehicle model, traffic lights, wanted level, missions, weapons/ammo/armour/hit tests, config DTO, RNG |
 | `Scripts/Runtime/` | `NeonHarbor.Runtime` | Game root, city mesh builder, procedural textures/materials, car factory, human rig, AI director, player, camera, HUD, audio, post effects, day/night |
 | `Scripts/Editor/` | `NeonHarbor.Editor` | First-import setup and the **Neon Harbor** menu |
 | `Shaders/` | — | Bloom/tone-map post shader (Built-in), additive glow shader |
 | `Resources/Data/harbor_balance.json` | — | Every tuning value (snake_case) |
-| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 28 NUnit tests for the Core |
+| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 40 NUnit tests for the Core |
 
 ## Tests
 

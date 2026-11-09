@@ -22,6 +22,7 @@ namespace NeonHarbor.Runtime
         public MissionDirector Missions { get; private set; }
         public DayNightCycle Day { get; private set; }
         public CameraRig Camera { get; private set; }
+        public CombatDirector Combat { get; private set; }
 
         private HarborHud hud;
         private HarborAudio sound;
@@ -53,6 +54,7 @@ namespace NeonHarbor.Runtime
             cam.nearClipPlane = 0.1f; cam.farClipPlane = 2500f; cam.clearFlags = CameraClearFlags.Skybox;
             post = cam.gameObject.AddComponent<PostEffects>();
             Camera = new CameraRig(cam, City); Camera.Snap(spawn);
+            Combat = new CombatDirector(Config, City, Materials, World, Player, Camera, cam, dynamicRoot, spawn);
             sound = gameObject.AddComponent<HarborAudio>();
             hud = gameObject.AddComponent<HarborHud>(); hud.Init(this);
             Wire();
@@ -78,6 +80,14 @@ namespace NeonHarbor.Runtime
             Missions.Toast += t => hud.Toast(t);
             Missions.Paid += v => { Player.Money += v; sound.Cash(); };
             Missions.Checkpoint += () => sound.Cash();
+            Combat.Heat += (amount, why) => Wanted.AddHeat(amount, why);
+            Combat.Toast += t => hud.Toast(t, good);
+            Combat.PlayerHurt += k => hud.Hurt(k);
+            Combat.Shot += smg => sound.Shot(smg);
+            Combat.Explosion += () => sound.Blast();
+            Combat.Click += done => sound.Click(done);
+            Combat.Swing += () => sound.Swing();
+            Combat.PickedUp += () => sound.Cash();
         }
 
         private static HarborConfig LoadConfig()
@@ -109,12 +119,14 @@ namespace NeonHarbor.Runtime
             if (deadTimer >= 0)
             {
                 deadTimer -= dt; post.Flash = new Color(0.25f, 0.02f, 0.02f, Mathf.Clamp01(deadTimer / 3f) * 0.6f);
-                if (deadTimer < 0) { Player.Respawn(spawn); Wanted.Clear(); foreach (var v in World.Vehicles.ToArray()) if (v.Spec.Type == CarType.Police) World.Remove(v); Camera.Snap(spawn); post.Flash = Color.clear; }
+                if (deadTimer < 0) { Player.Respawn(spawn); Wanted.Clear(); foreach (var v in World.Vehicles.ToArray()) if (v.Spec.Type == CarType.Police) World.Remove(v); Camera.Snap(spawn); Combat.Reset(); post.Flash = Color.clear; }
             }
             else if (!hud.ShowIntro) Player.Tick(dt, Camera.Yaw);
 
-            float nearestCop = World.Tick(dt, time, Wanted.Stars, Wanted.DesiredCops);
-            Wanted.Tick(dt, nearestCop, Player.Car != null ? Player.Car.Speed : 0);
+            Combat.Tick(dt, time, Wanted.Stars, deadTimer < 0 && !hud.ShowIntro);
+            Camera.Aim = Combat.Aiming && Player.Car == null;
+            float nearestCop = Mathf.Min(World.Tick(dt, time, Wanted.Stars, Wanted.DesiredCops), Combat.NearestOfficer());
+            Wanted.Tick(dt, nearestCop, Player.Car != null ? Player.Car.Speed : new Vector2(Player.Velocity.x, Player.Velocity.z).magnitude);
             if (Player.Health <= 0 && deadTimer < 0) Die("의식을 잃었습니다", "병원비 -$200", 0, 200);
             Missions.Tick(dt, time, Player, Wanted.Stars);
             Day.Tick(dt, Player.Position);

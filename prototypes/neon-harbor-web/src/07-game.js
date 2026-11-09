@@ -60,11 +60,15 @@ const AUDIO = (() => {
     win() { blip([523, 659, 784, 1046], 0.13, "triangle", 0.25); },
     fail() { blip([392, 311, 262], 0.2, "sawtooth", 0.15); },
     star() { blip([660, 440], 0.12, "square", 0.12); },
+    shot(v = 1, light = false) { burst(0.9 * v, light ? 2600 : 1800, light ? 0.12 : 0.2); burst(0.7 * v, 140, light ? 0.15 : 0.28); },
+    explosion() { burst(1.2, 600, 1.4); burst(1.2, 90, 1.8); },
+    click(reload) { blip(reload ? [1800, 1200] : [900], 0.03, "square", 0.08); },
+    swing() { burst(0.25, 900, 0.12); },
   };
 })();
 
 // ---------------------------------------------------------------- input
-const INPUT = { keys: new Set(), mdx: 0, mdy: 0, locked: false, dragging: false, wheel: 0, touch: { x: 0, y: 0, active: false }, pressed: new Set() };
+const INPUT = { keys: new Set(), mdx: 0, mdy: 0, locked: false, dragging: false, wheel: 0, touch: { x: 0, y: 0, active: false }, pressed: new Set(), fire: false, firePressed: false, aim: false };
 const isDown = c => INPUT.keys.has(c);
 addEventListener("keydown", e => {
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(e.code)) e.preventDefault();
@@ -76,12 +80,18 @@ addEventListener("blur", () => INPUT.keys.clear());
 const canvasEl = renderer.domElement;
 canvasEl.addEventListener("contextmenu", e => e.preventDefault());
 canvasEl.addEventListener("mousedown", e => {
-  AUDIO.start(); INPUT.dragging = true;
-  if (!INPUT.locked && e.button === 0 && canvasEl.requestPointerLock && !matchMedia("(hover: none)").matches) {
-    try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* sandbox may refuse */ }
+  AUDIO.start();
+  if (e.button === 2) { INPUT.aim = true; if (!INPUT.locked) INPUT.dragging = true; }
+  if (e.button === 0) {
+    if (INPUT.locked || pointerLockRefused) { INPUT.fire = true; INPUT.firePressed = true; }
+    else if (canvasEl.requestPointerLock && !matchMedia("(hover: none)").matches) {
+      try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => { pointerLockRefused = true; }); } catch (err) { pointerLockRefused = true; }
+    }
   }
 });
-addEventListener("mouseup", () => INPUT.dragging = false);
+let pointerLockRefused = false;
+document.addEventListener("pointerlockerror", () => { pointerLockRefused = true; });
+addEventListener("mouseup", e => { if (e.button === 0) INPUT.fire = false; if (e.button === 2) { INPUT.aim = false; INPUT.dragging = false; } });
 document.addEventListener("pointerlockchange", () => INPUT.locked = document.pointerLockElement === canvasEl);
 addEventListener("mousemove", e => { if (INPUT.locked || INPUT.dragging) { INPUT.mdx += e.movementX; INPUT.mdy += e.movementY; } });
 canvasEl.addEventListener("wheel", e => { e.preventDefault(); INPUT.wheel += Math.sign(e.deltaY); }, { passive: false });
@@ -143,7 +153,7 @@ function initPlayer() {
 }
 function nearestEnterable() {
   let best = null, bd = 4.2;
-  for (const v of VEHICLES) { const d = Math.hypot(v.pos.x - PLAYER.pos.x, v.pos.z - PLAYER.pos.z); if (d < bd && speedOf(v) < 6) { bd = d; best = v; } }
+  for (const v of VEHICLES) { if (v.exploded) continue; const d = Math.hypot(v.pos.x - PLAYER.pos.x, v.pos.z - PLAYER.pos.z); if (d < bd && speedOf(v) < 6) { bd = d; best = v; } }
   return best;
 }
 function enterCar(car) {
@@ -190,8 +200,8 @@ function updatePlayer(dt) {
     const impact = stepCar(c, dt);
     if (impact > 4) { CAMERA.shake = Math.min(1, impact / 16); AUDIO.crash(Math.min(1, impact / 22)); }
     PLAYER.pos.set(c.pos.x, 0.18, c.pos.z);
-    if (c.health <= 0 && !c.burning) { c.burning = true; HUD.toast("차량이 크게 파손됐습니다! F로 내리세요"); }
-    if (c.burning) { c.throttle *= 0.3; }
+    if (c.health <= 0 && !c.burning && !c.exploded) { c.burning = 4.5; c.burnByPlayer = false; }
+    if (c.burning || c.exploded) { c.throttle *= 0.3; }
     return;
   }
   // on foot
@@ -242,7 +252,7 @@ function updatePlayer(dt) {
 // ---------------------------------------------------------------- wanted level
 function addHeat(n, why) {
   const before = PLAYER.stars;
-  PLAYER.heat = Math.min(CFG.wanted.maxStars + 0.99, PLAYER.heat + n);
+  PLAYER.heat = clamp(PLAYER.heat + n, 0, CFG.wanted.maxStars + 0.99);
   PLAYER.stars = Math.min(CFG.wanted.maxStars, Math.floor(PLAYER.heat));
   PLAYER.evade = 0;
   if (PLAYER.stars > before) { AUDIO.star(); HUD.toast(`수배 레벨 ${"★".repeat(PLAYER.stars)} · ${why}`, "warn"); }
@@ -253,12 +263,13 @@ function updateWanted(dt) {
   if (cops.length < want && Math.random() < dt * 0.8) spawnPolice();
   let nearest = 1e9;
   for (const c of cops) nearest = Math.min(nearest, Math.hypot(c.pos.x - PLAYER.pos.x, c.pos.z - PLAYER.pos.z));
+  nearest = Math.min(nearest, COMBAT.nearestOfficer());
   if (PLAYER.stars > 0) {
     if (nearest > CFG.wanted.evadeRadius) {
       PLAYER.evade += dt;
       if (PLAYER.evade > CFG.wanted.evadeSeconds) { PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.evade = 0; HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
     } else PLAYER.evade = 0;
-    const playerSpeed = PLAYER.car ? speedOf(PLAYER.car) : 0;
+    const playerSpeed = PLAYER.car ? speedOf(PLAYER.car) : Math.hypot(PLAYER.vel.x, PLAYER.vel.z);
     if (nearest < CFG.wanted.bustRadius && playerSpeed < 2) { PLAYER.bust += dt; if (PLAYER.bust > CFG.wanted.bustSeconds) GAME.busted(); }
     else PLAYER.bust = Math.max(0, PLAYER.bust - dt);
   }
@@ -367,7 +378,7 @@ const PICKUPS = (() => {
 const CAMERA = { cam: camera, yaw: Math.PI, pitch: 0.28, dist: 1, idle: 0, shake: 0, fov: 62, pos: new THREE.Vector3(), look: new THREE.Vector3() };
 function updateCamera(dt) {
   const inCar = !!PLAYER.car;
-  const sens = INPUT.locked ? 0.0022 : 0.005;
+  const sens = (INPUT.locked ? 0.0022 : 0.005) * (INPUT.aim ? 0.6 : 1);
   if (Math.abs(INPUT.mdx) + Math.abs(INPUT.mdy) > 0) { CAMERA.idle = 0; }
   CAMERA.yaw -= INPUT.mdx * sens; CAMERA.pitch = clamp(CAMERA.pitch + INPUT.mdy * sens, -0.25, 1.2);
   INPUT.mdx = INPUT.mdy = 0;
@@ -384,15 +395,17 @@ function updateCamera(dt) {
     target = new THREE.Vector3(c.pos.x, c.pos.y + 1.4, c.pos.z);
     CAMERA.fov = damp(CAMERA.fov, 62 + clamp(sp / 45, 0, 1) * 16, 3, dt);
   } else {
-    baseDist = 4.4; height = 1.55;
+    const aiming = INPUT.aim && PLAYER.weapon !== "fist";
+    CAMERA.aimBlend = damp(CAMERA.aimBlend || 0, aiming ? 1 : 0, 12, dt);
+    baseDist = lerp(4.4, 2.3, CAMERA.aimBlend); height = lerp(1.55, 1.62, CAMERA.aimBlend);
     target = new THREE.Vector3(PLAYER.pos.x, PLAYER.pos.y + height, PLAYER.pos.z);
-    CAMERA.fov = damp(CAMERA.fov, 60, 3, dt);
+    CAMERA.fov = damp(CAMERA.fov, aiming ? 46 : 60, 8, dt);
   }
   CAMERA.dist = clamp(CAMERA.dist + INPUT.wheel * 0.6, 0.6, 1.8); INPUT.wheel = 0;
   const dist = baseDist * CAMERA.dist / 1.0;
   const cp = Math.cos(CAMERA.pitch), sp2 = Math.sin(CAMERA.pitch);
   const want = new THREE.Vector3(target.x - Math.sin(CAMERA.yaw) * cp * dist, target.y + sp2 * dist + (inCar ? 0.6 : 0.25), target.z - Math.cos(CAMERA.yaw) * cp * dist);
-  if (!inCar) { const sideX = Math.cos(CAMERA.yaw) * -0.55, sideZ = -Math.sin(CAMERA.yaw) * -0.55; want.x += sideX; want.z += sideZ; target.x += sideX; target.z += sideZ; }
+  if (!inCar) { const sh = 0.55 + (CAMERA.aimBlend || 0) * 0.25, sideX = Math.cos(CAMERA.yaw) * -sh, sideZ = -Math.sin(CAMERA.yaw) * -sh; want.x += sideX; want.z += sideZ; target.x += sideX; target.z += sideZ; }
   const tHit = raycastBoxes(target.x, target.y, target.z, want.x, want.y, want.z);
   if (tHit < 1) want.lerpVectors(target, want, Math.max(0.12, tHit - 0.05));
   want.y = Math.max(want.y, CITY.groundHeight(want.x, want.z) + 0.4);
@@ -400,6 +413,11 @@ function updateCamera(dt) {
   if (CAMERA.pos.distanceTo(want) > 30) CAMERA.pos.copy(want);
   camera.position.copy(CAMERA.pos);
   if (CAMERA.shake > 0) { camera.position.x += rand(-1, 1) * CAMERA.shake * 0.3; camera.position.y += rand(-1, 1) * CAMERA.shake * 0.3; CAMERA.shake = Math.max(0, CAMERA.shake - dt * 2.5); }
-  camera.lookAt(target);
+  if (inCar) camera.lookAt(target);
+  else { // on foot look past the shoulder toward where the camera points, so the crosshair aims at the world, not the pavement
+    const lp = CAMERA.pitch - 0.16, far = 30;
+    const aimPt = new THREE.Vector3(target.x + Math.sin(CAMERA.yaw) * Math.cos(lp) * far, target.y - Math.sin(lp) * far, target.z + Math.cos(CAMERA.yaw) * Math.cos(lp) * far);
+    camera.lookAt(aimPt);
+  }
   if (Math.abs(camera.fov - CAMERA.fov) > 0.01) { camera.fov = CAMERA.fov; camera.updateProjectionMatrix(); }
 }

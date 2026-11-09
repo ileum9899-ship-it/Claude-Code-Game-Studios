@@ -92,7 +92,9 @@ const HUD = (() => {
     g.fillStyle = color; g.beginPath(); g.arc(R + sx, R + sy, r, 0, TAU); g.fill();
     g.strokeStyle = "rgba(0,0,0,0.6)"; g.lineWidth = 1.5; g.stroke();
   }
+  let hurtT = 0;
   return {
+    hurt(k) { hurtT = Math.min(1, hurtT + k); },
     toast(msg, kind = "") {
       const d = document.createElement("div"); d.className = "toast " + kind; d.textContent = msg; toasts.appendChild(d);
       while (toasts.children.length > 3) toasts.firstChild.remove(); setTimeout(() => d.remove(), 3200);
@@ -120,6 +122,12 @@ const HUD = (() => {
       const starEls = $("stars").children, flash = PLAYER.evade > 0 && Math.floor(t * 3) % 2 === 0;
       for (let k = 0; k < 5; k++) starEls[k].className = k < PLAYER.stars ? (flash ? "on dim" : "on") : "";
       $("hp").style.width = clamp(PLAYER.health, 0, 100) + "%";
+      $("ar").style.width = clamp(PLAYER.armor, 0, 100) + "%"; $("arbar").hidden = PLAYER.armor <= 0;
+      const ws = WEAPONS[PLAYER.weapon], wa = PLAYER.arsenal[PLAYER.weapon];
+      $("wname").textContent = ws.name; $("wammo").textContent = ws.melee ? "" : (PLAYER.reload > 0 ? "재장전…" : `${wa.clip} / ${wa.reserve}`);
+      const showX = !ws.melee && !PLAYER.car && GAME.state === "play" || (PLAYER.car && !ws.melee && INPUT.aim);
+      $("cross").hidden = !showX; $("cross").classList.toggle("aim", INPUT.aim); $("cross").classList.toggle("hit", COMBAT.hitMarker > 0);
+      hurtT = Math.max(0, hurtT - dt * 1.6); $("hurt").style.opacity = hurtT.toFixed(2);
       const car = PLAYER.car;
       $("speedo").hidden = !car;
       if (car) {
@@ -179,6 +187,7 @@ const GAME = (() => {
         PLAYER.rig.root.visible = true; PLAYER.rig.root.rotation.set(0, 0, 0); PLAYER.downTimer = 0;
         PLAYER.pos.set(SPAWN.x, 0.18, SPAWN.z); PLAYER.vel.set(0, 0, 0); PLAYER.health = 100; PLAYER.heat = 0; PLAYER.stars = 0; PLAYER.bust = 0;
         for (const v of [...VEHICLES]) if (v.type === "police") removeCar(v);
+        COMBAT.reset();
         grade.uniforms.flash.value.setRGB(0, 0, 0); state = "play"; CAMERA.pos.set(SPAWN.x, 5, SPAWN.z + 8);
       }
     },
@@ -241,7 +250,7 @@ function frame(now) {
   resolveContacts(dt);
   for (const p of PEDS) updatePed(p, dt);
   const nearestCop = updateWanted(dt);
-  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT);
+  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT); COMBAT.update(dt, clockT);
   LIGHTS.update(clockT);
   manageSpawns(dt);
   const env = updateDay(dt);
@@ -258,7 +267,7 @@ function frame(now) {
 }
 function boot() {
   buildWorld(); buildOcean(); buildNeon(); LIGHTS.build(); buildLightPools();
-  initPlayer(); spawnParked();
+  initPlayer(); spawnParked(); COMBAT.init();
   for (let k = 0; k < CFG.traffic.count; k++) spawnTrafficCar(PLAYER.pos);
   for (let k = 0; k < CFG.peds.count; k++) { const blk = CITY.blockAt(PLAYER.pos.x + rand(-60, 60), PLAYER.pos.z + rand(-60, 60)); if (blk && blk.type !== "harbor") spawnPed(blk); }
   resize();
@@ -266,7 +275,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }

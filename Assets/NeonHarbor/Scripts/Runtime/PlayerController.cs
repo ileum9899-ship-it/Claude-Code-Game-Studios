@@ -16,6 +16,16 @@ namespace NeonHarbor.Runtime
         private readonly HarborMaterials mats;
         private readonly WorldDirector world;
         private readonly HumanRig rig;
+        /// <summary>The on-foot body (for aim / punch poses and the gun model).</summary>
+        public HumanRig Rig => rig;
+        /// <summary>Weapons and ammo.</summary>
+        public readonly Arsenal Arsenal = new Arsenal();
+        /// <summary>Armour 0..100 (soaks two thirds of damage).</summary>
+        public float Armor;
+        /// <summary>Horizontal velocity on foot (m/s).</summary>
+        public Vector3 Velocity => vel;
+        /// <summary>True while knocked down.</summary>
+        public bool IsDown => downTimer > 0;
         private HumanRig seatedRig;
         private Vector3 vel;
         private bool onGround = true;
@@ -57,6 +67,7 @@ namespace NeonHarbor.Runtime
             Vehicle best = null; float bd = 4.2f;
             foreach (var v in world.Vehicles)
             {
+                if (v.Exploded) continue;
                 float d = Vector2.Distance(new Vector2(v.Position.x, v.Position.z), new Vector2(Position.x, Position.z));
                 if (d < bd && v.Speed < 6) { bd = d; best = v; }
             }
@@ -98,8 +109,24 @@ namespace NeonHarbor.Runtime
         {
             if (Car != null) { if (seatedRig != null) UnityEngine.Object.Destroy(seatedRig.Root.gameObject); seatedRig = null; Car.Mode = VehicleMode.Parked; Car = null; }
             rig.Root.gameObject.SetActive(true); rig.Root.rotation = Quaternion.identity;
-            Position = spawn; vel = Vector3.zero; Health = 100; downTimer = 0;
+            Position = spawn; vel = Vector3.zero; Health = 100; Armor = 0; downTimer = 0;
         }
+
+        /// <summary>Applies damage through armour.</summary>
+        public void Damage(float amount)
+        {
+            var v = new Vitals { Health = Health, Armor = Armor }; v.Damage(amount); Health = v.Health; Armor = v.Armor;
+        }
+
+        /// <summary>Throws the player (explosions).</summary>
+        public void Knock(Vector3 velocity)
+        {
+            if (Car != null || downTimer > 0) return;
+            vel = velocity; onGround = false; downTimer = 1.6f; KnockedDown?.Invoke();
+        }
+
+        /// <summary>Turns the on-foot body toward a yaw (aiming).</summary>
+        public void FaceYaw(float yaw, float dt) { Yaw += Mathx.AngleDiff(Yaw, yaw) * (1 - Mathf.Exp(-18 * dt)); }
 
         /// <summary>Called by the world when a car may have hit the player on foot.</summary>
         public void CheckHitBy(Vehicle v)
@@ -168,6 +195,7 @@ namespace NeonHarbor.Runtime
             var c = Car;
             float throttle = (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow) ? 1 : 0) - (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) ? 1 : 0);
             float steer = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ? 1 : 0) - (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ? 1 : 0);
+            if (c.Health <= 0 && !c.Exploded && c.Burning <= 0) { c.Burning = 4.5f; c.BurnByPlayer = false; }
             if (c.Health <= 0) throttle *= 0.3f;
             c.Input = new VehicleInput { Throttle = throttle, Steer = steer, Handbrake = Input.GetKey(KeyCode.Space) };
             if (Input.GetKeyDown(KeyCode.H)) HornPressed?.Invoke();

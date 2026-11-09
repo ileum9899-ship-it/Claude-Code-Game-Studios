@@ -42,7 +42,7 @@ namespace NeonHarbor.Core
         public void AddHeat(float amount, string reason)
         {
             int before = Stars;
-            Heat = Math.Min(cfg.MaxStars + 0.99f, Heat + amount);
+            Heat = Mathx.Clamp(Heat + amount, 0, cfg.MaxStars + 0.99f);
             Stars = Math.Min(cfg.MaxStars, (int)Math.Floor(Heat));
             EvadeTimer = 0;
             if (Stars > before) StarsRaised?.Invoke(Stars, reason);

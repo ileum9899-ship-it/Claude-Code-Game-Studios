@@ -43,6 +43,21 @@ re-planned each second) and switch to direct pursuit within 32 m. Escape: every 
 beyond the evade radius for the evade time → stars cleared. Arrest: a cop within the
 bust radius while the player's speed < 2 m/s for the bust time → fine and respawn.
 
+**Combat.** Weapons: fists (18 dmg, 1.7 m, 0.42 s), pistol (34 dmg, semi-auto, 12-round
+magazine, 1.3 s reload), SMG (19 dmg, automatic, 30 rounds, 1.8 s reload). Guns are
+hitscan from the camera through the crosshair; spread doubles from the hip and grows
+×1.6 while running. Holding aim pulls the camera over the shoulder (FOV 46).
+Pedestrians have 40 health and officers 60; at zero they fall and fade after 12–14 s.
+Armour soaks two thirds of damage. Cars lose 70 % of a bullet's damage from their
+health; at zero they burn for 4.5 s, then explode (radius 8 m, linear falloff:
+120 to officers, 110 to the player on foot, 70 to cars, knocks people down).
+Heat: gunfire within 55 m of police +1 (once per 6 s), killing a pedestrian +1,
+hurting an officer +0.6 / downing one +1, shooting a police car +1, an explosion the
+player caused +1, punching +0.25 (+0.5 for a knockout, +1 if police are within 30 m).
+At 2+ stars, police cars that get close and slow down release two officers who run
+in and shoot (every 0.55–1 s) with hit chance `clamp(0.55 − 0.012·distance − 0.012·target_speed, 0.08, 0.55)`
+for 7 damage (6 to a car). Downed officers drop ammo.
+
 **Missions.** Three street markers: courier (one drop-off 160–330 m away), street race
 (7 checkpoints along the road graph, car required), evade (reach 2 stars, then escape).
 Cash pickups respawn elsewhere when collected.
@@ -86,13 +101,15 @@ impactful: `car_grip` / `car_handbrake_grip` (drift feel), `car_max_speed`,
 
 ## 8. Acceptance Criteria
 
-Automated (`Assets/Tests/EditMode/`, 28 tests): deterministic city, every district
+Automated (`Assets/Tests/EditMode/`, 40 tests): deterministic city, every district
 present, no building on a road, downtown taller than residential, shortest grid path,
 road/ground queries, circle push-out, camera raycast, sidewalk ring; car accelerates
 below top speed, brakes to stop, steering sign, handbrake drift, reverse cap, wall
 bounce, mass vs. top speed; heat → stars and cap, evade, evade reset, arrest only when
 stopped, cop count, signals never green both ways, courier/race/timeout/evade flow,
-config defaults, RNG parity with the browser build.
+config defaults, RNG parity with the browser build; fists-only start, semi-auto vs
+automatic, fire rate, auto-reload, empty click, ammo pickups, armour soak, ray–cylinder
+and rotated ray–box hits, officer accuracy, explosion falloff, heat never negative.
 
 Visual: city by day and night, driving, police chase, phone layout — browser build
 captures in `production/qa/evidence/neon-harbor-web/`. A Unity capture needs the

@@ -17,7 +17,10 @@ namespace NeonHarbor.Runtime
         private GUIStyle money, clock, starOn, starOff, label, small, big, bigSub, prompt, speed, unit, title, tagline, panelTitle, timer, button;
         private readonly List<(string text, float time, Color color)> toasts = new List<(string, float, Color)>();
         private string bannerTitle, bannerSub; private float bannerTime; private Color bannerColor;
-        private float scale = 1;
+        private float scale = 1, hurt;
+
+        /// <summary>Red screen-edge flash when the player is hurt (0..1).</summary>
+        public void Hurt(float k) { hurt = Mathf.Min(1, hurt + k); }
 
         /// <summary>Intro screen visible.</summary>
         public bool ShowIntro = true;
@@ -96,11 +99,24 @@ namespace NeonHarbor.Runtime
             Shadowed(new Rect(W - 360, 34, 340, 48), "$" + p.Money.ToString("N0"), money);
             bool flash = game.Wanted.EvadeTimer > 0 && Mathf.FloorToInt(Time.time * 3) % 2 == 0;
             for (int k = 0; k < 5; k++) Shadowed(new Rect(W - 180 + k * 32, 82, 30, 30), "★", k < game.Wanted.Stars && !flash ? starOn : starOff);
+            var arms = p.Arsenal;
+            string ammo = arms.Spec.Melee ? "" : arms.Reloading ? "재장전…" : $"{arms.Clip} / {arms.Reserve}";
+            Shadowed(new Rect(W - 360, 114, 340, 30), $"<size=14>{arms.Spec.Name}</size>   <size=24><b>{ammo}</b></size>", new GUIStyle(clock) { normal = { textColor = Color.white } });
+
+            // hurt vignette + crosshair
+            hurt = Mathf.Max(0, hurt - Time.deltaTime * 1.6f);
+            if (hurt > 0.01f) { Box(new Rect(0, 0, W, 40), new Color(0.75f, 0.04f, 0.08f, hurt * 0.5f)); Box(new Rect(0, RefH - 40, W, 40), new Color(0.75f, 0.04f, 0.08f, hurt * 0.5f)); Box(new Rect(0, 0, 40, RefH), new Color(0.75f, 0.04f, 0.08f, hurt * 0.5f)); Box(new Rect(W - 40, 0, 40, RefH), new Color(0.75f, 0.04f, 0.08f, hurt * 0.5f)); }
+            if (!arms.Spec.Melee && (p.Car == null || game.Combat.Aiming))
+            {
+                float g = game.Combat.Aiming ? 4 : 8; var cc = game.Combat.HitMarker > 0 ? new Color(1f, 0.3f, 0.37f) : Color.white; float cx = W / 2, cy = RefH / 2;
+                Box(new Rect(cx - 1, cy - g - 8, 2, 8), cc); Box(new Rect(cx - 1, cy + g, 2, 8), cc); Box(new Rect(cx - g - 8, cy - 1, 8, 2), cc); Box(new Rect(cx + g, cy - 1, 8, 2), cc); Box(new Rect(cx - 1.5f, cy - 1.5f, 3, 3), cc);
+            }
 
             // bottom left: minimap + health
             DrawMinimap(new Rect(18, RefH - MapSize - 34, MapSize, MapSize));
             Box(new Rect(18, RefH - 26, MapSize, 8), new Color(0, 0, 0, 0.55f));
             Box(new Rect(18, RefH - 26, MapSize * Mathf.Clamp01(p.Health / 100f), 8), new Color(0.31f, 0.83f, 0.42f));
+            if (p.Armor > 0) { Box(new Rect(18, RefH - 14, MapSize, 6), new Color(0, 0, 0, 0.55f)); Box(new Rect(18, RefH - 14, MapSize * Mathf.Clamp01(p.Armor / 100f), 6), new Color(0.24f, 0.55f, 1f)); }
 
             // bottom right: speedometer
             if (p.Car != null)
@@ -194,8 +210,8 @@ namespace NeonHarbor.Runtime
         {
             Box(new Rect(0, 0, W * 0.55f, RefH), new Color(0.02f, 0.03f, 0.06f, 0.88f));
             Shadowed(new Rect(36, 150, 600, 120), "네온 하버", title);
-            GUI.Label(new Rect(40, 270, 520, 60), "항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 너무 소란을 피우면 경찰이 쫓아옵니다.", tagline);
-            string[] rows = { "WASD · 방향키   걷기 / 운전", "마우스   카메라 (우클릭을 누른 채 움직여도 됨)", "Shift · Space   달리기 · 점프 / 핸드브레이크", "F   차량 타기 · 내리기 (운전 중인 차는 탈취)", "H · T · 휠   경적 · 시간 빨리감기 · 카메라 거리", "노란 빛기둥   택배 배달 · 스트리트 레이스 · 추격 따돌리기", "Esc   마우스 커서 풀기" };
+            GUI.Label(new Rect(40, 270, 520, 60), "항구 도시의 밤거리를 걷고, 아무 차나 잡아타고, 일을 받아 돈을 버세요. 무기를 주워 싸울 수도 있지만, 소란을 피울수록 더 많은 경찰이 총을 들고 쫓아옵니다.", tagline);
+            string[] rows = { "WASD · 방향키   걷기 / 운전", "마우스   카메라 (우클릭을 누른 채 움직여도 됨)", "Shift · Space   달리기 · 점프 / 핸드브레이크", "F   차량 타기 · 내리기 (운전 중인 차는 탈취)", "좌클릭 · 우클릭   사격·주먹 · 조준 (1·2·3 / Q 무기, R 재장전)", "H · T · 휠   경적 · 시간 빨리감기 · 카메라 거리", "노란 빛기둥   택배 배달 · 스트리트 레이스 · 추격 따돌리기", "Esc   마우스 커서 풀기" };
             for (int k = 0; k < rows.Length; k++) GUI.Label(new Rect(40, 340 + k * 24, 560, 24), rows[k], small);
             if (GUI.Button(new Rect(40, 530, 240, 56), "도시로 나가기", button) || Event.current.keyCode == KeyCode.Return) game.StartPlaying();
         }
