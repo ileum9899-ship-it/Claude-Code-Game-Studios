@@ -243,7 +243,7 @@ const POLICE = (() => {
     heli.cone.parent.updateMatrixWorld(); const local = heli.g.worldToLocal(aim.clone());
     heli.cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), local.clone().normalize()); heli.cone.position.copy(local.clone().normalize().multiplyScalar(22));
     heli.cone.scale.set(1, clamp(dir.length() / 44, 0.6, 2), 1);
-    heli.coneMat.opacity = 0.05 + night * 0.14; heli.spot.intensity = 1 + night * 6; heli.spot.target.position.copy(local);
+    heli.coneMat.opacity = 0.03 + night * 0.05; heli.spot.intensity = 0.6 + night * 2.4; heli.spot.target.position.copy(local);
     const horiz = Math.hypot(real.x - heli.pos.x, real.z - heli.pos.z);
     heli.sees = horiz < 75 && raycastBoxes(heli.pos.x, heli.pos.y - 2, heli.pos.z, real.x, 1.2, real.z) >= 0.999;
     if (heli.sees && P.stars >= 5 && GAME.state === "play") {

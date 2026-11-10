@@ -309,8 +309,8 @@ namespace NeonHarbor.Runtime
             Vector3 aim = wanted.Searching ? goal : new Vector3(real.x, 0, real.z), dir = aim - heli.Pos;
             heli.Cone.rotation = Quaternion.FromToRotation(Vector3.down, dir.normalized);
             heli.Cone.localScale = new Vector3(1, Mathf.Clamp(dir.magnitude / 44, 0.6f, 2), 1);
-            heli.ConeMat.SetColor("_TintColor", new Color(1f, 0.95f, 0.8f, 0.05f + night * 0.14f));
-            heli.Spot.transform.rotation = Quaternion.LookRotation(dir); heli.Spot.intensity = 1 + night * 6;
+            heli.ConeMat.SetColor("_TintColor", new Color(1f, 0.95f, 0.8f, 0.03f + night * 0.05f));
+            heli.Spot.transform.rotation = Quaternion.LookRotation(dir); heli.Spot.intensity = 0.6f + night * 2.4f;
             float horiz = Vector2.Distance(new Vector2(real.x, real.z), new Vector2(heli.Pos.x, heli.Pos.z));
             heli.Sees = horiz < 75 && city.Raycast(heli.Pos.x, heli.Pos.y - 2, heli.Pos.z, real.x, 1.2f, real.z) >= 0.999f;
             if (heli.Sees && wanted.Stars >= 5)
