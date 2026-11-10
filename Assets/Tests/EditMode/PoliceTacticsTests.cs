@@ -75,12 +75,24 @@ namespace NeonHarbor.Tests
         }
 
         [Test]
-        public void SearchPoints_StayInsideTheCircle_AndUnitsSplitUp()
+        public void Search_StartsAtLastKnownPosition()
         {
             var lk = new Vec2(100, 100);
-            for (float t = 0; t < 60; t += 3.7f)
-                for (int u = 0; u < 3; u++) Assert.LessOrEqual(Vec2.Distance(PoliceTactics.SearchPoint(lk, 80, u, 3, t), lk), 80.01f);
-            var a = PoliceTactics.SearchPoint(lk, 80, 0, 3, 1); var b = PoliceTactics.SearchPoint(lk, 80, 1, 3, 1);
+            for (int u = 0; u < 3; u++) Assert.Less(Vec2.Distance(PoliceTactics.SearchWaypoint(lk, 120, u, 3, 0), lk), 8f);
+        }
+
+        [Test]
+        public void Search_SpiralsOutward_InsideTheCircle_AndUnitsSplitUp()
+        {
+            var lk = new Vec2(100, 100);
+            float prev = 0;
+            for (int leg = 1; leg < 12; leg++)
+            {
+                for (int u = 0; u < 3; u++) Assert.LessOrEqual(Vec2.Distance(PoliceTactics.SearchWaypoint(lk, 80, u, 3, leg), lk), 80 * 0.9f + 0.01f);
+                float r = Vec2.Distance(PoliceTactics.SearchWaypoint(lk, 80, 0, 3, leg), lk);
+                Assert.GreaterOrEqual(r, prev - 1e-3f, "never moves back inward"); prev = r;
+            }
+            var a = PoliceTactics.SearchWaypoint(lk, 80, 0, 3, 3); var b = PoliceTactics.SearchWaypoint(lk, 80, 1, 3, 3);
             Assert.Greater(Vec2.Distance(a, b), 20f);
         }
 

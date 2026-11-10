@@ -93,7 +93,7 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 | `Scripts/Editor/` | `NeonHarbor.Editor` | First-import setup and the **Neon Harbor** menu |
 | `Shaders/` | — | Bloom/tone-map post shader (Built-in), additive glow shader |
 | `Resources/Data/harbor_balance.json` | — | Every tuning value (snake_case) |
-| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 60 NUnit tests for the Core |
+| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 61 NUnit tests for the Core |
 
 ## Tests
 

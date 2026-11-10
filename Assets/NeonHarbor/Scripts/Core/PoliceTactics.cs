@@ -140,15 +140,23 @@ namespace NeonHarbor.Core
         }
 
         /// <summary>
-        /// Search point for unit <paramref name="unit"/> of <paramref name="units"/>: each unit sweeps
-        /// its own sector of the search circle, spiralling out over time.
+        /// Search waypoint number <paramref name="leg"/> for unit <paramref name="unit"/> of <paramref name="units"/>.
+        /// Leg 0 is the last known position itself (each unit a few metres apart); later legs
+        /// spiral outward through the unit's own sector of the circle and stay inside it.
+        /// Advance the leg when the unit arrives (or gives up on a point).
         /// </summary>
-        public static Vec2 SearchPoint(Vec2 lastKnown, float radius, int unit, int units, float time)
+        public static Vec2 SearchWaypoint(Vec2 lastKnown, float radius, int unit, int units, int leg)
         {
             units = Math.Max(1, units);
-            float sector = Mathx.Tau / units, angle = unit * sector + (time * 0.15f % 1f) * sector;
-            float r = radius * (0.35f + 0.55f * (0.5f + 0.5f * (float)Math.Sin(time * 0.21f + unit)));
-            return new Vec2(lastKnown.X + (float)Math.Cos(angle) * r, lastKnown.Y + (float)Math.Sin(angle) * r);
+            float sector = Mathx.Tau / units, baseAngle = unit * sector;
+            if (leg <= 0)
+            {
+                float a0 = baseAngle + sector * 0.5f;
+                return new Vec2(lastKnown.X + (float)Math.Cos(a0) * 6, lastKnown.Y + (float)Math.Sin(a0) * 6);
+            }
+            float frac = Math.Min(0.9f, 0.25f + 0.2f * (leg - 1));
+            float angle = baseAngle + sector * (0.2f + 0.6f * (((leg - 1) * 0.618f) % 1f));
+            return new Vec2(lastKnown.X + (float)Math.Cos(angle) * radius * frac, lastKnown.Y + (float)Math.Sin(angle) * radius * frac);
         }
 
         /// <summary>Officer accuracy: improves with stars and against a still target, worse with distance.</summary>

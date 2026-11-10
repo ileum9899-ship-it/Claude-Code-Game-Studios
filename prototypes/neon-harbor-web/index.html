@@ -2956,10 +2956,11 @@ const PT = {
     if (d < near) return true; if (d > range) return false;
     return Math.abs(angDiff(yaw, Math.atan2(dx, dz))) <= fov / 2;
   },
-  searchPoint(lk, radius, unit, units, time) {
-    units = Math.max(1, units); const sector = TAU / units, ang = unit * sector + ((time * 0.15) % 1) * sector;
-    const r = radius * (0.35 + 0.55 * (0.5 + 0.5 * Math.sin(time * 0.21 + unit)));
-    return new THREE.Vector3(lk.x + Math.cos(ang) * r, 0, lk.z + Math.sin(ang) * r);
+  searchWaypoint(lk, radius, unit, units, leg) {
+    units = Math.max(1, units); const sector = TAU / units, base = unit * sector;
+    if (leg <= 0) { const a0 = base + sector * 0.5; return new THREE.Vector3(lk.x + Math.cos(a0) * 6, 0, lk.z + Math.sin(a0) * 6); }
+    const frac = Math.min(0.9, 0.25 + 0.2 * (leg - 1)), ang = base + sector * (0.2 + 0.6 * (((leg - 1) * 0.618) % 1));
+    return new THREE.Vector3(lk.x + Math.cos(ang) * radius * frac, 0, lk.z + Math.sin(ang) * radius * frac);
   },
   accuracy(d, targetSpeed, stars) { return clamp(0.5 + 0.035 * stars - d * 0.011 - targetSpeed * 0.013, 0.08, 0.7); },
 };
@@ -2972,7 +2973,16 @@ const POLICE = (() => {
   const playerPos = () => P.car ? P.car.pos : P.pos;
 
   function unitIndex(u) { if (!units.has(u)) units.set(u, units.size); return units.get(u); }
-  function searchTarget(u) { return PT.searchPoint(WANTED.st.lastKnown, WANTED.radius(), unitIndex(u) % 4, Math.min(4, Math.max(1, units.size)), clock); }
+  const legs = new Map();
+  function searchTarget(u) {
+    const lk = WANTED.st.lastKnown; let L = legs.get(u);
+    if (!L) legs.set(u, L = { leg: 0, t: 0, ax: lk.x, az: lk.z });
+    if (Math.hypot(L.ax - lk.x, L.az - lk.z) > 5) { L.ax = lk.x; L.az = lk.z; L.leg = 0; L.t = 0; } // new sighting: start over at it
+    const p = PT.searchWaypoint(lk, WANTED.radius(), unitIndex(u) % 4, Math.min(4, Math.max(1, units.size)), L.leg);
+    const at = u.pos || (u.g && u.pos) || null; L.t += 1 / 60;
+    if ((at && Math.hypot(at.x - p.x, at.z - p.z) < 14) || L.t > 15) { L.leg++; L.t = 0; }
+    return p;
+  }
 
   // route over the road graph, refreshed when the goal moves or every 0.8 s
   function route(car, goal) {
@@ -3140,7 +3150,7 @@ const POLICE = (() => {
     if (P.stars < 4) { if (heli && (heli.pos.y > 140 || Math.hypot(heli.pos.x - P.pos.x, heli.pos.z - P.pos.z) > 160)) { scene.remove(heli.g); heli = null; } else if (heli) { heli.vel.y += 3 * dt; heli.pos.addScaledVector(heli.vel, dt); heli.g.position.copy(heli.pos); heli.sees = false; } return; }
     if (!heli) { heli = buildHeli(); HUD.toast("경찰 헬기가 떴습니다", "warn"); }
     const real = playerPos(), seen = !WANTED.st.searching;
-    const goal = seen ? new THREE.Vector3(real.x, 0, real.z) : PT.searchPoint(WANTED.st.lastKnown, WANTED.radius(), 0, 1, clock * 1.6);
+    const goal = seen ? new THREE.Vector3(real.x, 0, real.z) : searchTarget(heli);
     const to = new THREE.Vector3(goal.x - heli.pos.x - 10, 45 - heli.pos.y, goal.z - heli.pos.z - 10);
     const desired = to.clone().setLength(Math.min(to.length() * 0.8, 30));
     heli.vel.lerp(desired, 1 - Math.exp(-1.2 * dt)); heli.pos.addScaledVector(heli.vel, dt);
@@ -3175,7 +3185,7 @@ const POLICE = (() => {
         const real = playerPos(), ds = chasers.map(c => Math.hypot(c.pos.x - real.x, c.pos.z - real.z));
         const order = ds.map((d, i) => i).sort((a, b) => ds[a] - ds[b]);
         order.forEach((ci, rank) => roles.set(chasers[ci], rank === 1 ? "flanker" : rank === 2 ? "interceptor" : "pursuer"));
-        for (const u of [...units.keys()]) if (!VEHICLES.includes(u) && !COMBAT.OFFICERS.includes(u)) units.delete(u);
+        for (const u of [...units.keys()]) if (u !== heli && !VEHICLES.includes(u) && !COMBAT.OFFICERS.includes(u)) { units.delete(u); legs.delete(u); }
       }
       updateRoadblock(dt);
       updateHeli(dt, night);

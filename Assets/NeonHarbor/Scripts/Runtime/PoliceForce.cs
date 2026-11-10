@@ -34,6 +34,8 @@ namespace NeonHarbor.Runtime
         private readonly System.Random rnd = new System.Random(57);
         private readonly Dictionary<Vehicle, Brain> brains = new Dictionary<Vehicle, Brain>();
         private readonly Dictionary<object, int> units = new Dictionary<object, int>();
+        private sealed class SearchLeg { public int Leg; public float Timer; public Vec2 Anchor; }
+        private readonly Dictionary<object, SearchLeg> legs = new Dictionary<object, SearchLeg>();
         private readonly List<Vehicle> roadblock = new List<Vehicle>();
         private readonly List<Vec2> routeScratch = new List<Vec2>();
         private Vector3 roadblockAt;
@@ -65,7 +67,12 @@ namespace NeonHarbor.Runtime
         public Vector3 SearchTarget(object unit)
         {
             if (!units.TryGetValue(unit, out int idx)) { idx = units.Count; units[unit] = idx; }
-            var p = PoliceTactics.SearchPoint(wanted.LastKnown, wanted.SearchRadius, idx % 4, Mathf.Clamp(units.Count, 1, 4), clock);
+            if (!legs.TryGetValue(unit, out var leg)) legs[unit] = leg = new SearchLeg { Anchor = wanted.LastKnown };
+            if (Vec2.Distance(leg.Anchor, wanted.LastKnown) > 5) { leg.Anchor = wanted.LastKnown; leg.Leg = 0; leg.Timer = 0; } // new sighting: start over at it
+            var p = PoliceTactics.SearchWaypoint(wanted.LastKnown, wanted.SearchRadius, idx % 4, Mathf.Clamp(units.Count, 1, 4), leg.Leg);
+            Vector3 at = unit is Vehicle v ? v.Position : unit is CombatDirector.Officer o ? o.Pos : heli != null && unit == (object)heli ? heli.Pos : Vector3.zero;
+            leg.Timer += Time.deltaTime;
+            if (Vector2.Distance(new Vector2(at.x, at.z), new Vector2(p.X, p.Y)) < 14 || leg.Timer > 15) { leg.Leg++; leg.Timer = 0; }
             return new Vector3(p.X, 0, p.Y);
         }
 
@@ -219,7 +226,7 @@ namespace NeonHarbor.Runtime
                 var roles = PoliceTactics.AssignRoles(dists);
                 for (int k = 0; k < chasers.Count; k++) { if (!brains.TryGetValue(chasers[k], out var b)) brains[chasers[k]] = b = new Brain(); b.Role = roles[k]; }
                 var dead = new List<object>(); foreach (var u in units.Keys) if (u is Vehicle v && !world.Vehicles.Contains(v) || u is CombatDirector.Officer o && !combat.Officers.Contains(o)) dead.Add(u);
-                foreach (var u in dead) units.Remove(u);
+                foreach (var u in dead) { units.Remove(u); legs.Remove(u); }
                 var gone = new List<Vehicle>(); foreach (var v in brains.Keys) if (!world.Vehicles.Contains(v)) gone.Add(v);
                 foreach (var v in gone) brains.Remove(v);
             }

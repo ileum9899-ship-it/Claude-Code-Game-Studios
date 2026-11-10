@@ -64,8 +64,10 @@ flanker (races to the intersection one block ahead of the target's heading), int
 (two blocks ahead); a flanker / interceptor that reaches its point or is passed engages
 for 4 s. Against a player on foot, cruisers stop ~9 m short and release officers.
 Stuck for 1 s → reverse 1.2 s with the lock that swings the nose to the open side; stuck
-4 times while > 70 m away and out of the player's sight → relocated. Search: each unit
-sweeps its own sector of the search circle (≤ 16 m/s). Roadblock (3+ stars, player
+4 times while > 70 m away and out of the player's sight → relocated. Search: every unit first drives
+to the last known position, then works through fixed waypoints that spiral outward
+through its own sector of the search circle (next waypoint on arrival or after 15 s; a new
+sighting restarts at it; ≤ 16 m/s). Roadblock (3+ stars, player
 driving > 8 m/s, 30 s cooldown): two cruisers broadside at the intersection two blocks
 ahead, officers out. Helicopter (4+ stars): flies at 45 m (≤ 30 m/s) over the target or
 the search area, sees the player within 75 m horizontally with line of sight, searchlight
@@ -147,7 +149,7 @@ impactful: `car_grip` / `car_handbrake_grip` (drift feel), `car_max_speed`,
 
 ## 8. Acceptance Criteria
 
-Automated (`Assets/Tests/EditMode/`, 60 tests): deterministic city, every district
+Automated (`Assets/Tests/EditMode/`, 61 tests): deterministic city, every district
 present, no building on a road, downtown taller than residential, shortest grid path,
 road/ground queries, circle push-out, camera raycast, sidewalk ring; car accelerates
 below top speed, brakes to stop, steering sign, handbrake drift, reverse cap, wall
@@ -161,8 +163,8 @@ unseen crimes don't count and witness calls arrive after the delay, crimes seen 
 count at once; shop purchases, ammo needs the gun, no-money and full-armour refusals,
 spray refusals and charge, regeneration cap, GPS route along roads; interception leads a
 moving target and is reachable, stationary target / capped lead, corner speed, look-ahead
-along the route, role assignment, node ahead, field of view, search sectors stay inside
-and split units, officer accuracy trends.
+along the route, role assignment, node ahead, field of view, search starts at the last known position then
+spirals outward inside the circle with units split up, officer accuracy trends.
 
 Visual: city by day and night, driving, police chase, phone layout — browser build
 captures in `production/qa/evidence/neon-harbor-web/`. A Unity capture needs the
