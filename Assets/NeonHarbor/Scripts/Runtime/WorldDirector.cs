@@ -44,6 +44,8 @@ namespace NeonHarbor.Runtime
         public PlayerController Player;
         /// <summary>Set by the game: where a police car should head (player when seen, search area otherwise).</summary>
         public Func<Vehicle, Vector3> PoliceTarget;
+        /// <summary>Set by the game: drives a pursuing police car for one frame (replaces the simple chase below).</summary>
+        public Action<Vehicle, float> PoliceBrain;
 
         /// <summary>Creates the director.</summary>
         public WorldDirector(HarborConfig cfg, CityLayout city, HarborMaterials mats, Transform root)
@@ -169,7 +171,8 @@ namespace NeonHarbor.Runtime
                     case VehicleMode.Wreck: v.Input = new VehicleInput { Brake = 0.3f }; v.Step(dt, city); traffic++; break;
                     case VehicleMode.Police:
                         if (stars == 0) { v.Mode = VehicleMode.Parked; break; }
-                        UpdatePolice(v, dt, time); cops++;
+                        if (PoliceBrain != null) { PoliceBrain(v, dt); SetSiren(v, true, Mathf.FloorToInt(time * 6) % 2 == 0); SetBrakeLights(v); } else UpdatePolice(v, dt, time);
+                        cops++;
                         nearestCop = Mathf.Min(nearestCop, Vector3.Distance(v.Position, Player.Position));
                         break;
                     case VehicleMode.Parked:

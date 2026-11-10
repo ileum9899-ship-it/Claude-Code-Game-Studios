@@ -40,6 +40,8 @@ namespace NeonHarbor.Runtime
 
         public readonly Place Hospital, PoliceStation, GunShop, SprayShop;
         public IEnumerable<Place> Places { get { yield return Hospital; yield return PoliceStation; yield return GunShop; yield return SprayShop; } }
+        /// <summary>Set by the game: police brains (search points, helicopter sight).</summary>
+        public PoliceForce Police;
         /// <summary>Overlay mode.</summary>
         public Mode Current { get; private set; }
         /// <summary>Player-set map waypoint.</summary>
@@ -85,17 +87,19 @@ namespace NeonHarbor.Runtime
         private bool CopSees()
         {
             Vector3 eye = player.Car != null ? player.Car.Position + Vector3.up : player.Position + Vector3.up * 1.4f;
+            // police see in a forward cone (and all around up close), never through buildings; the helicopter sees from above
             foreach (var v in world.Vehicles)
             {
                 if (v.Spec.Type != CarType.Police || v.Exploded || v.Driver == null && v.Mode != VehicleMode.Police) continue;
-                if (Vector3.Distance(v.Position, eye) < cfg.CopSightCar && city.Raycast(v.Position.x, 1.4f, v.Position.z, eye.x, eye.y, eye.z) >= 0.999f) return true;
+                if (!PoliceForce.InView(v.Position, v.Model.Yaw, eye, 2.4f, cfg.CopSightCar, 18)) continue;
+                if (city.Raycast(v.Position.x, 1.4f, v.Position.z, eye.x, eye.y, eye.z) >= 0.999f) return true;
             }
             foreach (var o in combat.Officers)
             {
-                if (o.Down) continue;
-                if (Vector3.Distance(o.Pos, eye) < cfg.CopSightFoot && city.Raycast(o.Pos.x, o.Pos.y + 1.5f, o.Pos.z, eye.x, eye.y, eye.z) >= 0.999f) return true;
+                if (o.Down || !PoliceForce.InView(o.Pos, o.Yaw, eye, CombatDirector.OfficerFov, cfg.CopSightFoot, 12)) continue;
+                if (city.Raycast(o.Pos.x, o.Pos.y + 1.5f, o.Pos.z, eye.x, eye.y, eye.z) >= 0.999f) return true;
             }
-            return false;
+            return Police != null && Police.HeliSees;
         }
 
         private bool Witnessed()
@@ -117,6 +121,7 @@ namespace NeonHarbor.Runtime
         public Vector3 PoliceTarget(object unit)
         {
             if (!wanted.Searching) return player.Car != null ? player.Car.Position : player.Position;
+            if (Police != null) return Police.SearchTarget(unit);
             var lk = wanted.LastKnown;
             if (!searchPoints.TryGetValue(unit, out var p) || Vector2.Distance(new Vector2(p.x, p.z), UnitPos(unit)) < 12 || Vector2.Distance(new Vector2(p.x, p.z), new Vector2(lk.X, lk.Y)) > wanted.SearchRadius)
             {

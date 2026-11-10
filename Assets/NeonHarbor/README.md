@@ -71,6 +71,11 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 - Full-screen map with waypoint and a GPS route on the minimap (yellow to the mission
   target, purple to your waypoint). Car radio with three procedural stations.
   Health slowly regenerates to 50 % when you avoid damage for 5 s.
+- Police drive the street grid properly (corner braking, obstacle avoidance), work as a
+  team (chaser that PIT-rams, flanker and interceptor that cut you off at the next
+  intersections), see in a forward cone, and split the search area into sectors when
+  they lose you. 3★ adds roadblocks ahead of you, 4★ a helicopter with a searchlight,
+  5★ a helicopter gunner. Officers use their cruiser as cover, strafe and fire in bursts.
 - At two or more stars, police leave their cars near you and fight on foot; their
   accuracy drops with distance and with how fast you move. Gunfire near police, hurting
   people or officers, shooting police cars and causing explosions all raise the wanted level.
@@ -83,12 +88,12 @@ only, set **Project Settings → Player → Active Input Handling** to **Both**.
 
 | Path | Assembly | What |
 |---|---|---|
-| `Scripts/Core/` | `NeonHarbor.Core` (no engine refs) | City layout + road graph + collision, vehicle model, traffic lights, wanted level, missions, weapons/ammo/armour/hit tests, shop/spray/regen rules, GPS routes, config DTO, RNG |
+| `Scripts/Core/` | `NeonHarbor.Core` (no engine refs) | City layout + road graph + collision, vehicle model, traffic lights, wanted level, missions, weapons/ammo/armour/hit tests, shop/spray/regen rules, GPS routes, police tactics, config DTO, RNG |
 | `Scripts/Runtime/` | `NeonHarbor.Runtime` | Game root, city mesh builder, procedural textures/materials, car factory, human rig, AI director, player, camera, HUD, audio, post effects, day/night |
 | `Scripts/Editor/` | `NeonHarbor.Editor` | First-import setup and the **Neon Harbor** menu |
 | `Shaders/` | — | Bloom/tone-map post shader (Built-in), additive glow shader |
 | `Resources/Data/harbor_balance.json` | — | Every tuning value (snake_case) |
-| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 51 NUnit tests for the Core |
+| `Assets/Tests/EditMode/` | `NeonHarbor.Tests.EditMode` | 60 NUnit tests for the Core |
 
 ## Tests
 

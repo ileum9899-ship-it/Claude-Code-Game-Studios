@@ -51,6 +51,30 @@ cars = stars × cops-per-star (max 5), spawned 90–200 m away, routing over the
 within the bust radius while the player's speed < 2 m/s for the bust time → fine and
 release at the police station.
 
+**Police AI.** Sight: cruisers see in a 2.4 rad (≈137°) forward cone up to `cop_sight_car`
+m and all around within 18 m; officers in a 2.8 rad cone up to `cop_sight_foot` m and all
+around within 12 m; always with a clear line of sight. Driving: route over the road graph
+(refreshed every 0.8 s or when the goal moves > 12 m), pure-pursuit steering at a
+look-ahead of `7 + 0.45·speed` m, speed planned for the next corner (`8 m/s` at 90°,
+braking budget 14 m/s²), three whisker rays (±0.38 rad, `6 + 0.6·speed` m) plus cars
+ahead steer toward the open side and cap speed. Roles, re-assigned every 0.5 s by
+distance: pursuer (closest; aims at the intercept point up to 2.5 s ahead, drives
+straight at it within 30 m with a clear line, PIT-rams the rear quarter within 14 m),
+flanker (races to the intersection one block ahead of the target's heading), interceptor
+(two blocks ahead); a flanker / interceptor that reaches its point or is passed engages
+for 4 s. Against a player on foot, cruisers stop ~9 m short and release officers.
+Stuck for 1 s → reverse 1.2 s with the lock that swings the nose to the open side; stuck
+4 times while > 70 m away and out of the player's sight → relocated. Search: each unit
+sweeps its own sector of the search circle (≤ 16 m/s). Roadblock (3+ stars, player
+driving > 8 m/s, 30 s cooldown): two cruisers broadside at the intersection two blocks
+ahead, officers out. Helicopter (4+ stars): flies at 45 m (≤ 30 m/s) over the target or
+the search area, sees the player within 75 m horizontally with line of sight, searchlight
+at night; at 5 stars a gunner fires every 1.2–2 s (30 % hit, 9 damage). Officers: cover
+behind their cruiser (cruiser between them and the target) when it is within 12 m,
+otherwise hold 9–18 m and strafe, fire bursts of 2–4 (0.16 s apart, 0.8–1.5 s pause),
+hold fire when a colleague or cruiser is in the line, walk around buildings via the street
+grid; accuracy `clamp(0.5 + 0.035·stars − 0.011·distance − 0.013·target_speed, 0.08, 0.7)`.
+
 **Services.** Gun shop (walk into the orange marker; game pauses): pistol $400, SMG
 $1200, pistol ammo ×24 $60, SMG ammo ×60 $120, armour $300 — guns once, ammo only for
 an owned gun, armour only below 100. Spray garage (drive into the teal marker on the
@@ -123,7 +147,7 @@ impactful: `car_grip` / `car_handbrake_grip` (drift feel), `car_max_speed`,
 
 ## 8. Acceptance Criteria
 
-Automated (`Assets/Tests/EditMode/`, 51 tests): deterministic city, every district
+Automated (`Assets/Tests/EditMode/`, 60 tests): deterministic city, every district
 present, no building on a road, downtown taller than residential, shortest grid path,
 road/ground queries, circle push-out, camera raycast, sidewalk ring; car accelerates
 below top speed, brakes to stop, steering sign, handbrake drift, reverse cap, wall
@@ -135,7 +159,10 @@ and rotated ray–box hits, officer accuracy, explosion falloff, heat never nega
 hiding inside it does not, being spotted re-centres it, search radius grows with stars,
 unseen crimes don't count and witness calls arrive after the delay, crimes seen by police
 count at once; shop purchases, ammo needs the gun, no-money and full-armour refusals,
-spray refusals and charge, regeneration cap, GPS route along roads.
+spray refusals and charge, regeneration cap, GPS route along roads; interception leads a
+moving target and is reachable, stationary target / capped lead, corner speed, look-ahead
+along the route, role assignment, node ahead, field of view, search sectors stay inside
+and split units, officer accuracy trends.
 
 Visual: city by day and night, driving, police chase, phone layout — browser build
 captures in `production/qa/evidence/neon-harbor-web/`. A Unity capture needs the

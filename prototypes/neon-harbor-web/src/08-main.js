@@ -278,6 +278,7 @@ function frame(now) {
   LIGHTS.update(clockT);
   manageSpawns(dt);
   const env = updateDay(dt);
+  POLICE.tick(dt, clockT, env.night);
   if (CAMERA.override) { camera.position.copy(CAMERA.override.pos); camera.lookAt(CAMERA.override.look); } else updateCamera(dt);
   if (M.water) M.water.uniforms.time.value = clockT;
   M.redBlink.color.setRGB(Math.sin(clockT * 3) > 0.6 ? 6 : 0.2, 0.1, 0.05);
@@ -299,7 +300,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { POLICE, PT, PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }

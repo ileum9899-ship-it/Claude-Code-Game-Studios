@@ -27,17 +27,17 @@ const WANTED = (() => {
   const radius = () => G.searchBase + G.searchPerStar * P.stars;
   function copCanSee() {
     const eye = new THREE.Vector3(P.pos.x, (P.car ? 1.0 : P.pos.y + 1.4), P.pos.z);
+    // police see in a forward cone (and all around up close), never through buildings; the helicopter sees from above
     for (const v of VEHICLES) {
       if (v.type !== "police" || v.exploded || !v.ai || (v.ai.mode !== "police" && !(v.ai.mode === "parked" && P.stars > 0))) continue;
-      const d = Math.hypot(v.pos.x - eye.x, v.pos.z - eye.z);
-      if (d < G.sightCar && raycastBoxes(v.pos.x, 1.4, v.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
+      if (!PT.inView(v.pos.x, v.pos.z, v.yaw, eye.x, eye.z, 2.4, G.sightCar, 18)) continue;
+      if (raycastBoxes(v.pos.x, 1.4, v.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
     }
     for (const o of COMBAT.OFFICERS) {
-      if (o.down) continue;
-      const d = o.pos.distanceTo(eye);
-      if (d < G.sightFoot && raycastBoxes(o.pos.x, o.pos.y + 1.5, o.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
+      if (o.down || !PT.inView(o.pos.x, o.pos.z, o.yaw, eye.x, eye.z, 2.8, G.sightFoot, 12)) continue;
+      if (raycastBoxes(o.pos.x, o.pos.y + 1.5, o.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
     }
-    return false;
+    return POLICE.heliSees();
   }
   function witnessed() {
     for (const p of PEDS) if ((p.state === "walk" || p.state === "flee") && p.pos.distanceTo(P.pos) < G.witnessRadius) return true;
@@ -81,6 +81,7 @@ const WANTED = (() => {
     // where a police unit should drive to: the player when seen, else a point inside the search area
     targetFor(car) {
       if (!st.searching) return PLAYER.car ? PLAYER.car.pos : PLAYER.pos;
+      return POLICE.searchTarget(car);
       let p = st.searchPts.get(car);
       if (!p || Math.hypot(car.pos.x - p.x, car.pos.z - p.z) < 12 || p.lk !== st.lastKnown.x) {
         const a = rand(0, TAU), r = rand(0, radius() * 0.8);

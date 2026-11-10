@@ -24,6 +24,7 @@ namespace NeonHarbor.Runtime
         public CameraRig Camera { get; private set; }
         public CombatDirector Combat { get; private set; }
         public OpenWorld Services { get; private set; }
+        public PoliceForce Police { get; private set; }
 
         private HarborHud hud;
         private HarborAudio sound;
@@ -60,6 +61,10 @@ namespace NeonHarbor.Runtime
             Services = new OpenWorld(Config, City, Materials, World, Combat, Player, Wanted, Missions);
             World.PoliceTarget = v => Services.PoliceTarget(v);
             Combat.OfficerTarget = o => Services.PoliceTarget(o);
+            Police = new PoliceForce(Config, City, Materials, World, Combat, Player, Wanted, dynamicRoot);
+            Services.Police = Police;
+            World.PoliceBrain = (v, dt) => Police.Drive(v, dt);
+            Combat.SearchTarget = o => Police.SearchTarget(o);
             sound = gameObject.AddComponent<HarborAudio>();
             hud = gameObject.AddComponent<HarborHud>(); hud.Init(this);
             Wire();
@@ -92,6 +97,9 @@ namespace NeonHarbor.Runtime
             Services.Purchased += () => sound.Cash();
             Services.RadioChanged += s => sound.SetStation(s);
             Services.Fade += t => fade = t;
+            Police.Toast += t => hud.Toast(t, warn);
+            Police.HeliShot += () => sound.Shot(true, 0.5f);
+            Police.HeliHit += dmg => { Player.Damage(dmg); hud.Hurt(0.6f); };
             Combat.Toast += t => hud.Toast(t, good);
             Combat.PlayerHurt += k => hud.Hurt(k);
             Combat.Shot += smg => sound.Shot(smg);
@@ -137,6 +145,7 @@ namespace NeonHarbor.Runtime
             }
             else if (!hud.ShowIntro) Player.Tick(dt, Camera.Yaw);
 
+            Combat.Searching = Wanted.Searching;
             Combat.Tick(dt, time, Wanted.Stars, deadTimer < 0 && !hud.ShowIntro);
             Camera.Aim = Combat.Aiming && Player.Car == null;
             float nearestCop = Mathf.Min(World.Tick(dt, time, Wanted.Stars, Wanted.DesiredCops), Combat.NearestOfficer());
@@ -145,6 +154,7 @@ namespace NeonHarbor.Runtime
             if (Player.Health <= 0 && deadTimer < 0) { arrested = false; Die("의식을 잃었습니다", $"병원비 -${Config.HospitalBill} · 병원에서 깨어났습니다", 0, Config.HospitalBill); }
             Missions.Tick(dt, time, Player, Wanted.Stars);
             Day.Tick(dt, Player.Position);
+            Police.Tick(dt, time, Day.Night);
             Materials.Water.SetTextureOffset("_BumpMap", new Vector2(time * 0.021f, time * 0.013f));
             post.Exposure = Mathf.Lerp(1.05f, 1.35f, Day.Night); post.Intensity = Mathf.Lerp(0.35f, 0.9f, Day.Night); post.Threshold = Mathf.Lerp(1.1f, 0.85f, Day.Night);
             sound.Tick(Player.Car, Wanted.Stars > 0 ? Mathf.Clamp01(1 - nearestCop / 140f) : 0);

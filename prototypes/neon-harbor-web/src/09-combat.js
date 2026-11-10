@@ -196,7 +196,7 @@ const COMBAT = (() => {
       gun.rotation.x = Math.PI / 2; gun.position.set(0, -0.46, 0.06); rig.foreR.add(gun);
       dynamic.add(rig.root);
       const pos = new THREE.Vector3(car.pos.x + side.x * s * 1.9, 0.1, car.pos.z + side.y * s * 1.9);
-      OFFICERS.push({ rig, pos, yaw: car.yaw, health: 60, armor: 0, down: false, downT: 0, cd: rand(0.4, 1.2), vel: new THREE.Vector3() });
+      OFFICERS.push({ rig, pos, yaw: car.yaw, health: 60, armor: 0, down: false, downT: 0, cd: rand(0.4, 1.2), vel: new THREE.Vector3(), car, side: s, burst: 0, strafe: s, strafeT: rand(1, 3), route: null, routeT: 0 });
     }
     if (car.driverMesh) { car.body.remove(car.driverMesh.root); car.driverMesh = null; }
     car.ai.mode = "parked"; car.throttle = 0; car.brake = 1;
@@ -212,45 +212,87 @@ const COMBAT = (() => {
     } else if (byPlayer && P.stars < 2) WANTED.crime(2 - P.heat + 0.01, "경찰관 공격", true);
   }
   function lineOfSight(a, b) { return raycastBoxes(a.x, a.y, a.z, b.x, b.y, b.z) >= 0.999; }
+  function friendlyInLine(o, from, to) {
+    const dx = to.x - from.x, dz = to.z - from.z, len = Math.hypot(dx, dz) || 1;
+    const blocked = (px, pz) => { const t = ((px - from.x) * dx + (pz - from.z) * dz) / (len * len); if (t <= 0.05 || t >= 0.95) return false; return Math.hypot(from.x + dx * t - px, from.z + dz * t - pz) < 0.9; };
+    for (const q of OFFICERS) if (q !== o && !q.down && blocked(q.pos.x, q.pos.z)) return true;
+    for (const v of VEHICLES) if (v.type === "police" && v !== P.car && blocked(v.pos.x, v.pos.z)) return true;
+    return false;
+  }
+  function moveOfficer(o, gx, gz, speed, dt) {
+    // walk straight when the way is clear, otherwise follow the street grid
+    let tx = gx, tz = gz;
+    if (raycastBoxes(o.pos.x, 1, o.pos.z, gx, 1, gz) < 0.999) {
+      o.routeT -= dt;
+      if (!o.route || o.routeT <= 0) { o.routeT = 1; o.route = CITY.path(CITY.nearestNode(o.pos.x, o.pos.z), CITY.nearestNode(gx, gz)).map(n => ({ x: n[0] * CITY.PITCH, z: n[1] * CITY.PITCH })); }
+      while (o.route.length && Math.hypot(o.route[0].x - o.pos.x, o.route[0].z - o.pos.z) < 3) o.route.shift();
+      if (o.route.length) { tx = o.route[0].x; tz = o.route[0].z; }
+    } else o.route = null;
+    const dx = tx - o.pos.x, dz = tz - o.pos.z, d = Math.hypot(dx, dz) || 1, s = d < 0.6 ? 0 : speed;
+    o.vel.x = damp(o.vel.x, dx / d * s, 10, dt); o.vel.z = damp(o.vel.z, dz / d * s, 10, dt);
+  }
   function updateOfficers(dt) {
+    const real = P.car ? P.car.pos : P.pos, pv = P.car ? { x: P.car.vel.x, z: P.car.vel.y } : { x: P.vel.x, z: P.vel.z };
+    const targetSpeed = Math.hypot(pv.x, pv.z), seen = !WANTED.st.searching;
     for (let k = OFFICERS.length - 1; k >= 0; k--) {
       const o = OFFICERS[k];
       if (o.down) { o.downT -= dt; if (o.downT < 0 || o.pos.distanceTo(P.pos) > 150) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); } else o.rig.root.position.copy(o.pos); continue; }
-      if (P.stars === 0 && o.pos.distanceTo(P.pos) > 60) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); continue; }
-      const tgt = WANTED.st.searching ? WANTED.targetFor(o) : (P.car ? P.car.pos : P.pos), d = Math.hypot(tgt.x - o.pos.x, tgt.z - o.pos.z);
-      const eye = new THREE.Vector3(o.pos.x, o.pos.y + 1.5, o.pos.z), aimAt = new THREE.Vector3(tgt.x, (P.car ? 0.9 : P.pos.y + 1.2), tgt.z);
-      const los = d < 70 && lineOfSight(eye, aimAt);
-      const want = Math.atan2(tgt.x - o.pos.x, tgt.z - o.pos.z);
-      o.yaw += angDiff(o.yaw, want) * (1 - Math.exp(-10 * dt));
-      const shooting = P.stars >= 2 && los && d < 32 && P.alive && GAME.state === "play";
-      let speed = 0;
-      if (P.stars === 0) speed = 0;
-      else if (!shooting || d > 16) speed = d > 3 ? CFG.player.run * 0.85 : 0;
-      o.vel.x = damp(o.vel.x, Math.sin(o.yaw) * speed, 10, dt); o.vel.z = damp(o.vel.z, Math.cos(o.yaw) * speed, 10, dt);
+      if (P.stars === 0) { if (o.pos.distanceTo(P.pos) > 60) { dynamic.remove(o.rig.root); OFFICERS.splice(k, 1); continue; } o.vel.multiplyScalar(0.8); }
+      const d = Math.hypot(real.x - o.pos.x, real.z - o.pos.z);
+      const eye = new THREE.Vector3(o.pos.x, o.pos.y + 1.5, o.pos.z), chest = new THREE.Vector3(real.x, (P.car ? 0.9 : P.pos.y + 1.2), real.z);
+      const los = d < 70 && lineOfSight(eye, chest);
+      const combat = P.stars >= 2 && los && d < 32 && P.alive && GAME.state === "play";
+      let faceYaw = Math.atan2(real.x - o.pos.x, real.z - o.pos.z), run = CFG.player.run * 0.9;
+      if (P.stars === 0) { /* stand down */ }
+      else if (combat) {
+        // cover: keep the cruiser between us and the target when it's close by; otherwise hold 10–18 m and strafe
+        const tox = (real.x - o.pos.x) / (d || 1), toz = (real.z - o.pos.z) / (d || 1);
+        let gx, gz;
+        if (o.car && !o.car.exploded && Math.hypot(o.car.pos.x - o.pos.x, o.car.pos.z - o.pos.z) < 12 && !P.car) {
+          const cx = o.car.pos.x - real.x, cz = o.car.pos.z - real.z, cl = Math.hypot(cx, cz) || 1;
+          gx = o.car.pos.x + cx / cl * 2.3 + (-cz / cl) * o.side * 1.2; gz = o.car.pos.z + cz / cl * 2.3 + (cx / cl) * o.side * 1.2;
+        } else {
+          o.strafeT -= dt; if (o.strafeT <= 0) { o.strafe = -o.strafe; o.strafeT = rand(1.2, 2.8); }
+          const radial = d < 9 ? -1 : d > 18 ? 1 : 0;
+          gx = o.pos.x + tox * radial * 3 + (-toz) * o.strafe * 2.5; gz = o.pos.z + toz * radial * 3 + tox * o.strafe * 2.5;
+        }
+        moveOfficer(o, gx, gz, CFG.player.walk * 1.4, dt);
+        // burst fire with lead on a moving target, holding fire if a colleague is in the way
+        o.cd -= dt;
+        if (o.cd <= 0) {
+          const muzzle = new THREE.Vector3(o.pos.x + Math.sin(faceYaw) * 0.6, o.pos.y + 1.45, o.pos.z + Math.cos(faceYaw) * 0.6);
+          if (friendlyInLine(o, muzzle, chest)) o.cd = 0.4;
+          else {
+            if (o.burst <= 0) o.burst = randi(2, 4);
+            o.burst--; o.cd = o.burst > 0 ? 0.16 : rand(0.8, 1.5);
+            const hit = Math.random() < PT.accuracy(d, targetSpeed, P.stars);
+            const end = hit ? chest.clone() : chest.clone().add(new THREE.Vector3(rand(-2, 2), rand(-0.5, 1.5), rand(-2, 2)));
+            tracer(muzzle, end); emit("flash", muzzle, new THREE.Vector3(), 0.06, 0.5);
+            flashLight.position.copy(muzzle); flashLight.intensity = 3;
+            AUDIO.shot(clamp(1 - d / 60, 0.15, 0.8), false);
+            if (hit) { if (P.car) damageCar(P.car, 6, false); else { applyDamage(P, 7); HUD.hurt(0.5); } }
+            else emit("spark", end, new THREE.Vector3(rand(-1, 1), 2, rand(-1, 1)), 0.25, 0.12);
+          }
+        }
+      } else {
+        // close in: to the target when seen (arrest range at 1 star), else sweep the search area
+        const goal = seen ? real : POLICE.searchTarget(o);
+        const stopAt = seen ? (P.stars >= 2 ? 12 : 1.4) : 2;
+        const gd = Math.hypot(goal.x - o.pos.x, goal.z - o.pos.z);
+        moveOfficer(o, goal.x, goal.z, gd > stopAt ? run : 0, dt);
+        if (!seen) faceYaw = Math.atan2(o.vel.x, o.vel.z) || o.yaw;
+      }
+      o.yaw += angDiff(o.yaw, faceYaw) * (1 - Math.exp(-10 * dt));
       o.pos.x += o.vel.x * dt; o.pos.z += o.vel.z * dt;
       const c = { x: o.pos.x, z: o.pos.z }; collideCircle(c, 0.4); o.pos.x = c.x; o.pos.z = c.z;
+      for (const v of VEHICLES) { // don't walk through cars
+        const f = forwardOf(v), dx = o.pos.x - v.pos.x, dz = o.pos.z - v.pos.z, al = dx * f.x + dz * f.y, lat = -dx * f.y + dz * f.x, hl = v.spec.len / 2 + 0.35, hw = v.spec.wid / 2 + 0.35;
+        if (Math.abs(al) < hl && Math.abs(lat) < hw) { const pa = hl - Math.abs(al), pl = hw - Math.abs(lat); if (pa < pl) { o.pos.x += f.x * pa * Math.sign(al); o.pos.z += f.y * pa * Math.sign(al); } else { o.pos.x += -f.y * pl * Math.sign(lat); o.pos.z += f.x * pl * Math.sign(lat); } }
+      }
       o.pos.y = CITY.groundHeight(o.pos.x, o.pos.z);
       o.rig.root.position.copy(o.pos); o.rig.root.rotation.set(0, o.yaw, 0);
       animateHuman(o.rig, Math.hypot(o.vel.x, o.vel.z), dt);
-      if (shooting) {
-        o.rig.armR.rotation.x = -Math.PI / 2 + 0.1; o.rig.foreR.rotation.x = 0; o.rig.armL.rotation.x = -1.2;
-        o.cd -= dt;
-        if (o.cd <= 0) {
-          o.cd = rand(0.55, 1.0);
-          const muzzle = new THREE.Vector3(o.pos.x + Math.sin(o.yaw) * 0.6, o.pos.y + 1.45, o.pos.z + Math.cos(o.yaw) * 0.6);
-          const moving = P.car ? speedOf(P.car) : Math.hypot(P.vel.x, P.vel.z);
-          const chance = clamp(0.55 - d * 0.012 - moving * 0.012, 0.08, 0.55);
-          const hit = Math.random() < chance;
-          const end = hit ? aimAt.clone() : aimAt.clone().add(new THREE.Vector3(rand(-2, 2), rand(-0.5, 1.5), rand(-2, 2)));
-          tracer(muzzle, end); emit("flash", muzzle, new THREE.Vector3(), 0.06, 0.5);
-          flashLight.position.copy(muzzle); flashLight.intensity = 3;
-          AUDIO.shot(clamp(1 - d / 60, 0.15, 0.8), false);
-          if (hit) {
-            if (P.car) damageCar(P.car, 6, false);
-            else { applyDamage(P, 7); HUD.hurt(0.5); }
-          } else emit("spark", end, new THREE.Vector3(rand(-1, 1), 2, rand(-1, 1)), 0.25, 0.12);
-        }
-      }
+      if (combat) { o.rig.armR.rotation.set(-Math.PI / 2 + 0.1, 0, -0.1); o.rig.foreR.rotation.x = 0; o.rig.armL.rotation.set(-1.4, 0, 0.45); }
     }
   }
 
@@ -446,7 +488,7 @@ const COMBAT = (() => {
       for (const o of OFFICERS) dynamic.remove(o.rig.root); OFFICERS.length = 0;
       P.armor = 0; P.reload = 0;
     },
-    damageCar, explode,
+    damageCar, explode, spawnOfficersFrom, fxTracer: (a, b) => tracer(a, b),
     debugCast() { const { o, d } = aimRay(); const startT = o.distanceTo(P.pos) - 0.2; const h = castShot(o, d, 200, Math.max(0.5, startT), P.car); return { kind: h.kind, t: h.t, o: o.toArray(), d: d.toArray(), startT }; },
   };
 })();

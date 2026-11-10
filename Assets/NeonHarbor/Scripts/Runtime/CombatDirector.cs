@@ -16,7 +16,15 @@ namespace NeonHarbor.Runtime
     public sealed class CombatDirector
     {
         /// <summary>A police officer on foot.</summary>
-        public sealed class Officer { public HumanRig Rig; public Vector3 Pos, Vel; public float Yaw, Cooldown, DownTimer; public Vitals Vitals; public bool Down; }
+        public sealed class Officer
+        {
+            public HumanRig Rig; public Vector3 Pos, Vel; public float Yaw, Cooldown, DownTimer, StrafeTimer, RouteTimer; public Vitals Vitals; public bool Down;
+            public Vehicle Car; public int Side = 1, Strafe = 1, Burst; public List<Vector3> Route;
+        }
+        /// <summary>Set by the game: search point for an officer while police have lost sight.</summary>
+        public Func<Officer, Vector3> SearchTarget;
+        /// <summary>Officer field of view (radians, metres).</summary>
+        public const float OfficerFov = 2.8f;
 
         private sealed class Pickup { public string Kind; public Transform Mesh; public float Respawn, Wait; public bool Permanent; }
         private sealed class Fx { public Transform T; public Material M; public Vector3 Pos, Vel; public float Life, Age, Size, Grow; public int Kind; public bool Alive; }
@@ -123,7 +131,8 @@ namespace NeonHarbor.Runtime
             boom.intensity = Mathf.Max(0, boom.intensity - dt * 14);
         }
 
-        private void Tracer(Vector3 a, Vector3 b)
+        /// <summary>Draws a bullet tracer.</summary>
+        public void Tracer(Vector3 a, Vector3 b)
         {
             LineRenderer lr = null; int idx = -1;
             for (int i = 0; i < tracers.Count; i++) if (tracers[i].age > 1) { lr = tracers[i].line; idx = i; break; }
@@ -238,7 +247,8 @@ namespace NeonHarbor.Runtime
         }
 
         // ------------------------------------------------------------------ officers
-        private void SpawnOfficersFrom(Vehicle car)
+        /// <summary>Two officers get out of a police car (it becomes cover).</summary>
+        public void SpawnOfficersFrom(Vehicle car)
         {
             car.Unloaded = true;
             var f = car.Model.Forward; var right = new Vector3(f.Y, 0, -f.X);
@@ -248,7 +258,7 @@ namespace NeonHarbor.Runtime
                 var rig = HumanRig.Create(mats, root, look);
                 AttachMesh(rig.Head, MeshBuilder.Cylinder(14), mats.Plain(HarborMaterials.Hex(0x141a26), 0.3f), new Vector3(0, 0.11f, 0), new Vector3(0.3f, 0.08f, 0.3f));
                 AttachMesh(rig.ForeR, MeshBuilder.Cube(), mats.Plain(HarborMaterials.Hex(0x1b1d20), 0.7f), new Vector3(0, -0.46f, 0.06f), new Vector3(0.05f, 0.2f, 0.08f));
-                Officers.Add(new Officer { Rig = rig, Pos = car.Position + right * side * 1.9f, Yaw = car.Model.Yaw, Vitals = new Vitals { Health = 60 }, Cooldown = R(0.4f, 1.2f) });
+                Officers.Add(new Officer { Rig = rig, Pos = car.Position + right * side * 1.9f, Yaw = car.Model.Yaw, Vitals = new Vitals { Health = 60 }, Cooldown = R(0.4f, 1.2f), Car = car, Side = side, Strafe = side, StrafeTimer = R(1, 3) });
             }
             world.RemoveDriver(car);
             car.Mode = VehicleMode.Parked; car.Input = new VehicleInput { Brake = 1 };
@@ -274,8 +284,44 @@ namespace NeonHarbor.Runtime
             else if (byPlayer) Heat?.Invoke(0.6f, "경찰관 공격", true);
         }
 
-        private void UpdateOfficers(float dt, int stars, bool playing)
+        private bool FriendlyInLine(Officer self, Vector3 from, Vector3 to)
         {
+            Vector3 d = to - from; d.y = 0; float len2 = Mathf.Max(1e-4f, d.sqrMagnitude);
+            bool Blocks(Vector3 p)
+            {
+                float t = ((p.x - from.x) * d.x + (p.z - from.z) * d.z) / len2; if (t <= 0.05f || t >= 0.95f) return false;
+                return Vector2.Distance(new Vector2(from.x + d.x * t, from.z + d.z * t), new Vector2(p.x, p.z)) < 0.9f;
+            }
+            foreach (var q in Officers) if (q != self && !q.Down && Blocks(q.Pos)) return true;
+            foreach (var v in world.Vehicles) if (v.Spec.Type == CarType.Police && v != player.Car && Blocks(v.Position)) return true;
+            return false;
+        }
+
+        // walk straight when the way is clear, otherwise follow the street grid
+        private void MoveOfficer(Officer o, Vector3 goal, float speed, float dt)
+        {
+            Vector3 t = goal;
+            if (city.Raycast(o.Pos.x, 1, o.Pos.z, goal.x, 1, goal.z) < 0.999f)
+            {
+                o.RouteTimer -= dt;
+                if (o.Route == null || o.RouteTimer <= 0)
+                {
+                    o.RouteTimer = 1; o.Route = new List<Vector3>();
+                    foreach (var n in city.Path(city.NearestNode(o.Pos.x, o.Pos.z), city.NearestNode(goal.x, goal.z))) { var p = city.NodePos(n.Item1, n.Item2); o.Route.Add(new Vector3(p.X, 0, p.Y)); }
+                }
+                while (o.Route.Count > 0 && Vector2.Distance(new Vector2(o.Route[0].x, o.Route[0].z), new Vector2(o.Pos.x, o.Pos.z)) < 3) o.Route.RemoveAt(0);
+                if (o.Route.Count > 0) t = o.Route[0];
+            }
+            else o.Route = null;
+            Vector3 to = t - o.Pos; to.y = 0; float d = to.magnitude, s = d < 0.6f ? 0 : speed;
+            if (d > 1e-3f) to /= d;
+            o.Vel.x = Mathx.Damp(o.Vel.x, to.x * s, 10, dt); o.Vel.z = Mathx.Damp(o.Vel.z, to.z * s, 10, dt);
+        }
+
+        private void UpdateOfficers(float dt, int stars, bool playing, bool searching)
+        {
+            Vector3 real = player.Car != null ? player.Car.Position : player.Position;
+            float targetSpeed = player.Car != null ? player.Car.Speed : new Vector2(player.Velocity.x, player.Velocity.z).magnitude;
             for (int k = Officers.Count - 1; k >= 0; k--)
             {
                 var o = Officers[k];
@@ -287,36 +333,72 @@ namespace NeonHarbor.Runtime
                     continue;
                 }
                 if (stars == 0 && dist > 60) { UnityEngine.Object.Destroy(o.Rig.Root.gameObject); Officers.RemoveAt(k); continue; }
-                Vector3 tgt = OfficerTarget != null ? OfficerTarget(o) : player.Car != null ? player.Car.Position : player.Position;
-                float d = Vector2.Distance(new Vector2(tgt.x, tgt.z), new Vector2(o.Pos.x, o.Pos.z));
-                Vector3 eye = o.Pos + Vector3.up * 1.5f, aimAt = new Vector3(tgt.x, player.Car != null ? 0.9f : player.Position.y + 1.2f, tgt.z);
-                bool los = d < 70 && city.Raycast(eye.x, eye.y, eye.z, aimAt.x, aimAt.y, aimAt.z) >= 0.999f;
-                o.Yaw += Mathx.AngleDiff(o.Yaw, Mathf.Atan2(tgt.x - o.Pos.x, tgt.z - o.Pos.z)) * (1 - Mathf.Exp(-10 * dt));
-                bool shooting = stars >= 2 && los && d < 32 && playing;
-                float speed = stars == 0 ? 0 : (!shooting || d > 16) && d > 3 ? cfg.RunSpeed * 0.85f : 0;
-                o.Vel.x = Mathx.Damp(o.Vel.x, Mathf.Sin(o.Yaw) * speed, 10, dt); o.Vel.z = Mathx.Damp(o.Vel.z, Mathf.Cos(o.Yaw) * speed, 10, dt);
+                float d = Vector2.Distance(new Vector2(real.x, real.z), new Vector2(o.Pos.x, o.Pos.z));
+                Vector3 eye = o.Pos + Vector3.up * 1.5f, chest = new Vector3(real.x, player.Car != null ? 0.9f : player.Position.y + 1.2f, real.z);
+                bool los = d < 70 && city.Raycast(eye.x, eye.y, eye.z, chest.x, chest.y, chest.z) >= 0.999f;
+                bool combatMode = stars >= 2 && los && d < 32 && playing;
+                float faceYaw = Mathf.Atan2(real.x - o.Pos.x, real.z - o.Pos.z);
+                if (stars == 0) o.Vel *= 0.8f;
+                else if (combatMode)
+                {
+                    Vector3 to = (real - o.Pos); to.y = 0; to = d > 1e-3f ? to / d : Vector3.forward; Vector3 side = new Vector3(to.z, 0, -to.x);
+                    Vector3 goal;
+                    if (o.Car != null && !o.Car.Exploded && Vector3.Distance(o.Car.Position, o.Pos) < 12 && player.Car == null)
+                    {
+                        // cover: put the cruiser between us and the target
+                        Vector3 away = o.Car.Position - real; away.y = 0; away.Normalize(); Vector3 aside = new Vector3(away.z, 0, -away.x);
+                        goal = o.Car.Position + away * 2.3f + aside * o.Side * 1.2f;
+                    }
+                    else
+                    {
+                        o.StrafeTimer -= dt; if (o.StrafeTimer <= 0) { o.Strafe = -o.Strafe; o.StrafeTimer = R(1.2f, 2.8f); }
+                        float radial = d < 9 ? -1 : d > 18 ? 1 : 0;
+                        goal = o.Pos + to * radial * 3 + side * o.Strafe * 2.5f;
+                    }
+                    MoveOfficer(o, goal, cfg.WalkSpeed * 1.4f, dt);
+                    o.Cooldown -= dt;
+                    if (o.Cooldown <= 0)
+                    {
+                        Vector3 muzzle = o.Pos + new Vector3(Mathf.Sin(faceYaw) * 0.6f, 1.45f, Mathf.Cos(faceYaw) * 0.6f);
+                        if (FriendlyInLine(o, muzzle, chest)) o.Cooldown = 0.4f;
+                        else
+                        {
+                            if (o.Burst <= 0) o.Burst = rnd.Next(2, 5);
+                            o.Burst--; o.Cooldown = o.Burst > 0 ? 0.16f : R(0.8f, 1.5f);
+                            bool hit = rnd.NextDouble() < PoliceTactics.OfficerAccuracy(d, targetSpeed, stars);
+                            Vector3 end = hit ? chest : chest + new Vector3(R(-2, 2), R(-0.5f, 1.5f), R(-2, 2));
+                            Tracer(muzzle, end); Emit(FxFlash, muzzle, Vector3.zero, 0.06f, 0.5f);
+                            flash.transform.position = muzzle; flash.intensity = 3; Shot?.Invoke(false);
+                            if (hit) { if (player.Car != null) DamageCar(player.Car, 6, false); else { player.Damage(7); PlayerHurt?.Invoke(0.5f); } }
+                            else Emit(FxSpark, end, new Vector3(R(-1, 1), 2, R(-1, 1)), 0.25f, 0.12f);
+                        }
+                    }
+                }
+                else
+                {
+                    // close in when seen (arrest range at 1 star), otherwise sweep the search area
+                    Vector3 goal = searching && SearchTarget != null ? SearchTarget(o) : real;
+                    float stopAt = searching ? 2 : stars >= 2 ? 12 : 1.4f;
+                    float gd = Vector2.Distance(new Vector2(goal.x, goal.z), new Vector2(o.Pos.x, o.Pos.z));
+                    MoveOfficer(o, goal, gd > stopAt ? cfg.RunSpeed * 0.9f : 0, dt);
+                    if (searching && new Vector2(o.Vel.x, o.Vel.z).sqrMagnitude > 0.01f) faceYaw = Mathf.Atan2(o.Vel.x, o.Vel.z);
+                }
+                o.Yaw += Mathx.AngleDiff(o.Yaw, faceYaw) * (1 - Mathf.Exp(-10 * dt));
                 o.Pos += new Vector3(o.Vel.x, 0, o.Vel.z) * dt;
                 float x = o.Pos.x, z = o.Pos.z; city.CollideCircle(ref x, ref z, 0.4f, out _, out _); o.Pos.x = x; o.Pos.z = z;
+                foreach (var v in world.Vehicles) // don't walk through cars
+                {
+                    var f = v.Forward; Vector3 dv = o.Pos - v.Position; float al = Vector3.Dot(dv, f), lat = dv.x * f.z - dv.z * f.x, hl = v.Spec.Length / 2 + 0.35f, hw = v.Spec.Width / 2 + 0.35f;
+                    if (Mathf.Abs(al) < hl && Mathf.Abs(lat) < hw)
+                    {
+                        float pa = hl - Mathf.Abs(al), pl = hw - Mathf.Abs(lat);
+                        if (pa < pl) o.Pos += f * pa * Mathf.Sign(al); else o.Pos += new Vector3(f.z, 0, -f.x) * pl * Mathf.Sign(lat);
+                    }
+                }
                 o.Pos.y = city.GroundHeight(o.Pos.x, o.Pos.z);
                 o.Rig.Root.SetPositionAndRotation(o.Pos, Quaternion.Euler(0, o.Yaw * Mathf.Rad2Deg, 0));
                 o.Rig.Animate(new Vector2(o.Vel.x, o.Vel.z).magnitude, dt, false);
-                if (!shooting) continue;
-                o.Rig.ArmR.localRotation = Quaternion.Euler(-80, 0, 0); o.Rig.ForeR.localRotation = Quaternion.identity; o.Rig.ArmL.localRotation = Quaternion.Euler(-68, 0, 25);
-                o.Cooldown -= dt;
-                if (o.Cooldown > 0) continue;
-                o.Cooldown = R(0.55f, 1f);
-                Vector3 muzzle = o.Pos + new Vector3(Mathf.Sin(o.Yaw) * 0.6f, 1.45f, Mathf.Cos(o.Yaw) * 0.6f);
-                float moving = player.Car != null ? player.Car.Speed : new Vector2(player.Velocity.x, player.Velocity.z).magnitude;
-                bool hit = rnd.NextDouble() < HitTest.OfficerHitChance(d, moving);
-                Vector3 end = hit ? aimAt : aimAt + new Vector3(R(-2, 2), R(-0.5f, 1.5f), R(-2, 2));
-                Tracer(muzzle, end); Emit(FxFlash, muzzle, Vector3.zero, 0.06f, 0.5f);
-                flash.transform.position = muzzle; flash.intensity = 3; Shot?.Invoke(false);
-                if (hit)
-                {
-                    if (player.Car != null) DamageCar(player.Car, 6, false);
-                    else { player.Damage(7); PlayerHurt?.Invoke(0.5f); }
-                }
-                else Emit(FxSpark, end, new Vector3(R(-1, 1), 2, R(-1, 1)), 0.25f, 0.12f);
+                if (combatMode) { o.Rig.ArmR.localRotation = Quaternion.Euler(-84, 0, -6); o.Rig.ForeR.localRotation = Quaternion.identity; o.Rig.ArmL.localRotation = Quaternion.Euler(-80, 0, 26); }
             }
         }
 
@@ -529,6 +611,9 @@ namespace NeonHarbor.Runtime
             }
         }
 
+        /// <summary>Set by the game each frame: police have lost sight of the player.</summary>
+        public bool Searching;
+
         /// <summary>Per-frame update.</summary>
         public void Tick(float dt, float time, int stars, bool playing)
         {
@@ -540,7 +625,7 @@ namespace NeonHarbor.Runtime
                     float d = Vector3.Distance(v.Position, player.Position);
                     if (d < (player.Car != null ? 14 : 26) && v.Speed < (player.Car != null ? 3 : 9)) SpawnOfficersFrom(v);
                 }
-            UpdateOfficers(dt, stars, playing);
+            UpdateOfficers(dt, stars, playing, Searching);
             UpdateBurning(dt);
             UpdatePickups(dt, time);
             UpdateFx(dt);

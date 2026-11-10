@@ -169,36 +169,7 @@ function spawnPolice() {
   }
   return null;
 }
-function updatePolice(car, dt, t) {
-  const ai = car.ai, tgt = WANTED.targetFor(car);
-  const d = Math.hypot(tgt.x - car.pos.x, tgt.z - car.pos.z);
-  ai.repath -= dt;
-  if (ai.repath <= 0) { ai.repath = 1; ai.path = CITY.path(CITY.nearestNode(car.pos.x, car.pos.z), CITY.nearestNode(tgt.x, tgt.z)); }
-  let aim;
-  if (d < 32 || ai.path.length <= 1) {
-    const pv = PLAYER.car ? PLAYER.car.vel : new THREE.Vector2();
-    aim = new THREE.Vector2(tgt.x + pv.x * 0.45, tgt.z + pv.y * 0.45);
-  } else {
-    let k = 0; while (k < ai.path.length - 1 && nodePos(ai.path[k]).distanceTo(new THREE.Vector2(car.pos.x, car.pos.z)) < 9) k++;
-    aim = nodePos(ai.path[k]);
-  }
-  const want = Math.atan2(aim.x - car.pos.x, aim.y - car.pos.z), diff = angDiff(car.yaw, want), sp = speedOf(car);
-  if (ai.reverse > 0) { ai.reverse -= dt; car.throttle = -1; car.steerIn = -Math.sign(diff); car.handbrake = false; }
-  else {
-    car.steerIn = clamp(diff * 2.2, -1, 1);
-    const sharp = Math.abs(diff);
-    car.throttle = d < 7 && !PLAYER.car ? 0 : sharp > 1.2 ? 0.45 : 1;
-    car.brake = d < 7 && !PLAYER.car ? 1 : 0;
-    car.handbrake = sharp > 1.0 && sp > 14;
-    ai.stuck = sp < 1.2 && car.throttle > 0 ? ai.stuck + dt : 0;
-    if (ai.stuck > 1.4) { ai.reverse = 1.3; ai.stuck = 0; }
-  }
-  stepCar(car, dt, true);
-  // siren
-  const on = Math.floor(t * 6) % 2 === 0;
-  car.siren.mr.color.setRGB(on ? 8 : 0.3, on ? 0.3 : 0.02, on ? 0.2 : 0.02);
-  car.siren.mb.color.setRGB(on ? 0.02 : 0.3, on ? 0.05 : 0.6, on ? 0.3 : 9);
-}
+function updatePolice(car, dt, t) { POLICE.update(car, dt, t); }
 
 // ---------------------------------------------------------------- pedestrians
 const PEDS = [];
