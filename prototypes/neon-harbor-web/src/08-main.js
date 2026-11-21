@@ -199,7 +199,7 @@ const GAME = (() => {
     wasted() { if (state !== "play") return; PLAYER.money = Math.max(0, PLAYER.money - CFG.gta.hospitalBill); where = "hospital"; reset("hospital", "의식을 잃었습니다", `병원비 -$${CFG.gta.hospitalBill} · 병원에서 깨어났습니다`, "bad"); AUDIO.fail(); },
     fade(t) { fadeT = t; },
     update(dt) {
-      if (fadeT > 0) { fadeT -= dt; $("fadeov").style.opacity = clamp(fadeT, 0, 1).toFixed(2); }
+      if (fadeT > 0) { fadeT -= dt; $("fadeov").style.opacity = fadeT > 0 ? clamp(fadeT, 0, 1).toFixed(2) : "0"; } // always ends fully clear
       if (state === "play") { if (PLAYER.health <= 0) this.wasted(); return; }
       timer -= dt; grade.uniforms.flash.value.setRGB(0.25, 0.02, 0.02).multiplyScalar(clamp(timer / 3, 0, 1));
       if (timer <= 0) {
