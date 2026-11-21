@@ -57,7 +57,7 @@ namespace NeonHarbor.Runtime
             if (cam == null) { var go = new GameObject("Main Camera") { tag = "MainCamera" }; cam = go.AddComponent<UnityEngine.Camera>(); go.AddComponent<AudioListener>(); }
             cam.nearClipPlane = 0.1f; cam.farClipPlane = 2500f; cam.clearFlags = CameraClearFlags.Skybox;
             post = cam.gameObject.AddComponent<PostEffects>();
-            Camera = new CameraRig(cam, City); Camera.Snap(spawn);
+            Camera = new CameraRig(cam, City, builder.Crowns); Camera.Snap(spawn);
             Combat = new CombatDirector(Config, City, Materials, World, Player, Camera, cam, dynamicRoot, spawn);
             Services = new OpenWorld(Config, City, Materials, World, Combat, Player, Wanted, Missions);
             World.PoliceTarget = v => Services.PoliceTarget(v);

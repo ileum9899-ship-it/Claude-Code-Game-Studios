@@ -396,12 +396,13 @@ function updateCamera(dt) {
   const cp = Math.cos(CAMERA.pitch), sp2 = Math.sin(CAMERA.pitch);
   const want = new THREE.Vector3(target.x - Math.sin(CAMERA.yaw) * cp * dist, target.y + sp2 * dist + (inCar ? 0.6 : 0.25), target.z - Math.cos(CAMERA.yaw) * cp * dist);
   if (!inCar) { const sh = 0.55 + (CAMERA.aimBlend || 0) * 0.25, sideX = Math.cos(CAMERA.yaw) * -sh, sideZ = -Math.sin(CAMERA.yaw) * -sh; want.x += sideX; want.z += sideZ; target.x += sideX; target.z += sideZ; }
-  const tHit = raycastBoxes(target.x, target.y, target.z, want.x, want.y, want.z);
+  const tHit = raycastBoxes(target.x, target.y, target.z, want.x, want.y, want.z, 1);
   if (tHit < 1) want.lerpVectors(target, want, Math.max(0.12, tHit - 0.05));
   want.y = Math.max(want.y, CITY.groundHeight(want.x, want.z) + 0.4);
   CAMERA.pos.lerp(want, 1 - Math.exp(-(inCar ? 14 : 20) * dt));
   if (CAMERA.pos.distanceTo(want) > 30) CAMERA.pos.copy(want);
   camera.position.copy(CAMERA.pos);
+  FOLIAGE.update(CAMERA.pos, target);
   if (CAMERA.shake > 0) { camera.position.x += rand(-1, 1) * CAMERA.shake * 0.3; camera.position.y += rand(-1, 1) * CAMERA.shake * 0.3; CAMERA.shake = Math.max(0, CAMERA.shake - dt * 2.5); }
   if (inCar) camera.lookAt(target);
   else { // on foot look past the shoulder toward where the camera points, so the crosshair aims at the world, not the pavement

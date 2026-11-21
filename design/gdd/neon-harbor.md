@@ -94,7 +94,10 @@ procedural stations: synthwave 108 BPM, hip-hop 88 BPM, ambient 70 BPM).
 **Combat.** Weapons: fists (18 dmg, 1.7 m, 0.42 s), pistol (34 dmg, semi-auto, 12-round
 magazine, 1.3 s reload), SMG (19 dmg, automatic, 30 rounds, 1.8 s reload). Guns are
 hitscan from the camera through the crosshair; spread doubles from the hip and grows
-×1.6 while running. Holding aim pulls the camera over the shoulder (FOV 46).
+×1.6 while running. Holding aim pulls the camera over the shoulder (FOV 46). The camera never rests inside a tree crown:
+in Unity it stops in front of the crown (`Foliage.Raycast`); in the browser build a crown between
+the camera and the player is hidden while it is in the way. Thin props (trunks, lamp posts,
+under 1 m across) never stop the camera; the browser build hides a trunk in the way too.
 Pedestrians have 40 health and officers 60; at zero they fall and fade after 12–14 s.
 Armour soaks two thirds of damage. Cars lose 70 % of a bullet's damage from their
 health; at zero they burn for 4.5 s, then explode (radius 8 m, linear falloff:

@@ -123,8 +123,24 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
   #money { font-size: 36px; } #kmh { font-size: 54px; }
   #br { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: auto; left: 160px; text-align: left; }
   #speedo .bar { margin-left: 0; }
+  /* the interaction prompt sits above the minimap, clear of the action buttons */
+  #prompt { left: max(18px, env(safe-area-inset-left, 0px)); transform: none; bottom: calc(188px + env(safe-area-inset-bottom, 0px)); font-size: 14px; }
+  body:has(#intro:not([hidden])) #touchUI { display: none; }
 }
-@media (max-width: 600px) { #mission { width: calc(100vw - 170px); } #intro table { font-size: 12px; } }
+/* phone landscape: one compact row-pair of buttons in the bottom-right corner, below the map/help buttons */
+@media (hover: none) and (max-height: 500px) {
+  #touchUI { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(4, 52px); gap: 8px; }
+  #touchUI button { width: 52px; height: 52px; font-size: 11px; }
+  #minimap { width: 110px; height: 110px; } .bar { width: 110px; }
+  #br { left: 140px; } #kmh { font-size: 44px; }
+  #prompt { bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+  #helpBtn { top: calc(142px + env(safe-area-inset-top, 0px)); } #mapBtn { top: calc(176px + env(safe-area-inset-top, 0px)); }
+}
+@media (max-width: 600px) {
+  #mission { width: calc(100vw - 206px); font-size: 13px; padding: 8px 10px; }
+  #intro table { font-size: 12px; }
+  .maphead span { display: none; } .maphead button { margin-left: auto; }
+}
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } .big { transition: none; } }
 </style>
 

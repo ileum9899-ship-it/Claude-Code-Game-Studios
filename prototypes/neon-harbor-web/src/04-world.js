@@ -106,6 +106,34 @@ class GeoBuilder {
 const world = new THREE.Group(); scene.add(world);
 const dynamic = new THREE.Group(); scene.add(dynamic);
 // instanced prop collector
+// tree crowns and trunks that block the camera are hidden (zero-scaled) while they are in the way, like a fade-out
+const FOLIAGE = {
+  im: null, trunks: null, list: [], grid: new Map(), hidden: new Set(), Z: new THREE.Matrix4().makeScale(0, 0, 0),
+  key(x, z) { return Math.floor(x / 20) + "," + Math.floor(z / 20); },
+  add(idx, x, y, z, rx, ry, m, im = "crowns") { const c = { idx, x, y, z, rx, ry, m, im }; this.list.push(c); const k = this.key(x, z); if (!this.grid.has(k)) this.grid.set(k, []); this.grid.get(k).push(c); },
+  // segment (a -> b) against an ellipsoid crown, grown by a margin for the camera's near plane
+  blocks(c, ax, ay, az, bx, by, bz, g) {
+    const rx = c.rx + g, ry = c.ry + g;
+    const ox = (ax - c.x) / rx, oy = (ay - c.y) / ry, oz = (az - c.z) / rx, dx = (bx - ax) / rx, dy = (by - ay) / ry, dz = (bz - az) / rx;
+    const A = dx * dx + dy * dy + dz * dz, B = ox * dx + oy * dy + oz * dz, C = ox * ox + oy * oy + oz * oz - 1;
+    if (C <= 0) return true;
+    const disc = B * B - A * C; if (disc < 0) return false;
+    const t = (-B - Math.sqrt(disc)) / A; return t >= 0 && t <= 1;
+  },
+  update(cam, target) {
+    if (!this.im) return;
+    const now = new Set();
+    const x0 = Math.min(cam.x, target.x) - 4, x1 = Math.max(cam.x, target.x) + 4, z0 = Math.min(cam.z, target.z) - 4, z1 = Math.max(cam.z, target.z) + 4;
+    for (let gx = Math.floor(x0 / 20); gx <= Math.floor(x1 / 20); gx++) for (let gz = Math.floor(z0 / 20); gz <= Math.floor(z1 / 20); gz++) {
+      for (const c of this.grid.get(gx + "," + gz) || []) if (this.blocks(c, cam.x, cam.y, cam.z, target.x, target.y, target.z, 0.5)) now.add(c);
+    }
+    const mesh = c => (c.im === "trunks" ? this.trunks : this.im);
+    for (const c of this.hidden) if (!now.has(c)) { mesh(c).setMatrixAt(c.idx, c.m); mesh(c).instanceMatrix.needsUpdate = true; }
+    for (const c of now) if (!this.hidden.has(c)) { mesh(c).setMatrixAt(c.idx, this.Z); mesh(c).instanceMatrix.needsUpdate = true; }
+    this.hidden = now;
+  },
+};
+
 class Instancer {
   constructor(geo, mat, cast = true) { this.geo = geo; this.mat = mat; this.m = []; this.c = []; this.cast = cast; }
   add(x, y, z, sx = 1, sy = 1, sz = 1, ry = 0, color) {
@@ -178,10 +206,11 @@ function buildWorld() {
   const containers = new Instancer(new THREE.BoxGeometry(2.44, 2.6, 6.1), M.container);
   const leafCol = () => col(pick([0x3f7a2e, 0x4f8a34, 0x355f27, 0x5d8f3a, 0x6f9440]));
   function tree(x, z, s = 1) {
-    CITY.addCollider({ x0: x - 0.3, z0: z - 0.3, x1: x + 0.3, z1: z + 0.3, h: 2.2 }); // trunk: solid for cars, people and the camera
-    trunks.add(x, 1.5 * s + 0.18, z, s, s, s);
-    crowns.add(x, 3.6 * s + 0.18, z, 1.9 * s, 1.6 * s, 1.9 * s, rand(0, TAU), leafCol());
-    crowns.add(x + rand(-0.6, 0.6) * s, 4.7 * s + 0.18, z + rand(-0.6, 0.6) * s, 1.3 * s, 1.2 * s, 1.3 * s, rand(0, TAU), leafCol());
+    CITY.addCollider({ x0: x - 0.3, z0: z - 0.3, x1: x + 0.3, z1: z + 0.3, h: 2.2 }); // trunk: solid for cars and people; the camera passes it (it is hidden while in the way)
+    const ti = trunks.add(x, 1.5 * s + 0.18, z, s, s, s); FOLIAGE.add(ti, x, 1.5 * s + 0.18, z, 0.3 * s, 1.6 * s, trunks.m[ti], "trunks");
+    const crown = (cx, cy, cz, rx, ry) => { const i = crowns.add(cx, cy, cz, rx, ry, rx, rand(0, TAU), leafCol()); FOLIAGE.add(i, cx, cy, cz, rx, ry, crowns.m[i]); };
+    crown(x, 3.6 * s + 0.18, z, 1.9 * s, 1.6 * s);
+    crown(x + rand(-0.6, 0.6) * s, 4.7 * s + 0.18, z + rand(-0.6, 0.6) * s, 1.3 * s, 1.2 * s);
   }
 
   // blocks
@@ -276,7 +305,7 @@ function buildWorld() {
   world.add(crane.mesh(M.crane));
   for (let k = 0; k < 40; k++) containers.add(E1 + rand(6, 14), 0.18 + 1.3 + (k % 3) * 2.62, 30 + Math.floor(k / 3) * 7.5 + rand(-0.3, 0.3), 1, 1, 1, Math.PI / 2, col(pick([0xb23a2a, 0x2a5fa8, 0xd99a1e, 0x2e7d4f, 0x1f8a9a])));
 
-  lights.build(); arms.build(); heads.build(); trunks.build(); crowns.build(); benches.build(); bins.build();
+  lights.build(); arms.build(); heads.build(); FOLIAGE.trunks = trunks.build(); FOLIAGE.im = crowns.build(); benches.build(); bins.build();
   acs.build(); tanks.build(); antennas.build(); blinks.build(); containers.build();
   world.updateMatrixWorld(true);
 }

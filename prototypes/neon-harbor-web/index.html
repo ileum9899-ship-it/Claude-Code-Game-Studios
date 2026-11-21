@@ -123,8 +123,24 @@ kbd { font-family: var(--f-num); font-size: 1.05em; background: rgba(255,255,255
   #money { font-size: 36px; } #kmh { font-size: 54px; }
   #br { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: auto; left: 160px; text-align: left; }
   #speedo .bar { margin-left: 0; }
+  /* the interaction prompt sits above the minimap, clear of the action buttons */
+  #prompt { left: max(18px, env(safe-area-inset-left, 0px)); transform: none; bottom: calc(188px + env(safe-area-inset-bottom, 0px)); font-size: 14px; }
+  body:has(#intro:not([hidden])) #touchUI { display: none; }
 }
-@media (max-width: 600px) { #mission { width: calc(100vw - 170px); } #intro table { font-size: 12px; } }
+/* phone landscape: one compact row-pair of buttons in the bottom-right corner, below the map/help buttons */
+@media (hover: none) and (max-height: 500px) {
+  #touchUI { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(4, 52px); gap: 8px; }
+  #touchUI button { width: 52px; height: 52px; font-size: 11px; }
+  #minimap { width: 110px; height: 110px; } .bar { width: 110px; }
+  #br { left: 140px; } #kmh { font-size: 44px; }
+  #prompt { bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+  #helpBtn { top: calc(142px + env(safe-area-inset-top, 0px)); } #mapBtn { top: calc(176px + env(safe-area-inset-top, 0px)); }
+}
+@media (max-width: 600px) {
+  #mission { width: calc(100vw - 206px); font-size: 13px; padding: 8px 10px; }
+  #intro table { font-size: 12px; }
+  .maphead span { display: none; } .maphead button { margin-left: auto; }
+}
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } .big { transition: none; } }
 </style>
 
@@ -371,11 +387,13 @@ function collideCircle(p, r) {
   return hit;
 }
 // segment vs boxes (camera collision): returns t in [0,1]
-function raycastBoxes(ax, ay, az, bx, by, bz) {
+// minSize > 0 skips thin props (tree trunks, lamp posts) — the camera passes those and they are hidden instead
+function raycastBoxes(ax, ay, az, bx, by, bz, minSize = 0) {
   let best = 1;
   const cells = new Set();
   for (let s = 0; s <= 4; s++) { const t = s / 4; CITY.near(lerp(ax, bx, t), lerp(az, bz, t)).forEach(c => cells.add(c)); }
   for (const c of cells) {
+    if (minSize && c.x1 - c.x0 < minSize && c.z1 - c.z0 < minSize) continue;
     let t0 = 0, t1 = 1; const d = [bx - ax, by - ay, bz - az], o = [ax, ay, az], mn = [c.x0, 0, c.z0], mx = [c.x1, c.h, c.z1];
     let ok = true;
     for (let k = 0; k < 3 && ok; k++) {
@@ -590,6 +608,34 @@ class GeoBuilder {
 const world = new THREE.Group(); scene.add(world);
 const dynamic = new THREE.Group(); scene.add(dynamic);
 // instanced prop collector
+// tree crowns and trunks that block the camera are hidden (zero-scaled) while they are in the way, like a fade-out
+const FOLIAGE = {
+  im: null, trunks: null, list: [], grid: new Map(), hidden: new Set(), Z: new THREE.Matrix4().makeScale(0, 0, 0),
+  key(x, z) { return Math.floor(x / 20) + "," + Math.floor(z / 20); },
+  add(idx, x, y, z, rx, ry, m, im = "crowns") { const c = { idx, x, y, z, rx, ry, m, im }; this.list.push(c); const k = this.key(x, z); if (!this.grid.has(k)) this.grid.set(k, []); this.grid.get(k).push(c); },
+  // segment (a -> b) against an ellipsoid crown, grown by a margin for the camera's near plane
+  blocks(c, ax, ay, az, bx, by, bz, g) {
+    const rx = c.rx + g, ry = c.ry + g;
+    const ox = (ax - c.x) / rx, oy = (ay - c.y) / ry, oz = (az - c.z) / rx, dx = (bx - ax) / rx, dy = (by - ay) / ry, dz = (bz - az) / rx;
+    const A = dx * dx + dy * dy + dz * dz, B = ox * dx + oy * dy + oz * dz, C = ox * ox + oy * oy + oz * oz - 1;
+    if (C <= 0) return true;
+    const disc = B * B - A * C; if (disc < 0) return false;
+    const t = (-B - Math.sqrt(disc)) / A; return t >= 0 && t <= 1;
+  },
+  update(cam, target) {
+    if (!this.im) return;
+    const now = new Set();
+    const x0 = Math.min(cam.x, target.x) - 4, x1 = Math.max(cam.x, target.x) + 4, z0 = Math.min(cam.z, target.z) - 4, z1 = Math.max(cam.z, target.z) + 4;
+    for (let gx = Math.floor(x0 / 20); gx <= Math.floor(x1 / 20); gx++) for (let gz = Math.floor(z0 / 20); gz <= Math.floor(z1 / 20); gz++) {
+      for (const c of this.grid.get(gx + "," + gz) || []) if (this.blocks(c, cam.x, cam.y, cam.z, target.x, target.y, target.z, 0.5)) now.add(c);
+    }
+    const mesh = c => (c.im === "trunks" ? this.trunks : this.im);
+    for (const c of this.hidden) if (!now.has(c)) { mesh(c).setMatrixAt(c.idx, c.m); mesh(c).instanceMatrix.needsUpdate = true; }
+    for (const c of now) if (!this.hidden.has(c)) { mesh(c).setMatrixAt(c.idx, this.Z); mesh(c).instanceMatrix.needsUpdate = true; }
+    this.hidden = now;
+  },
+};
+
 class Instancer {
   constructor(geo, mat, cast = true) { this.geo = geo; this.mat = mat; this.m = []; this.c = []; this.cast = cast; }
   add(x, y, z, sx = 1, sy = 1, sz = 1, ry = 0, color) {
@@ -662,10 +708,11 @@ function buildWorld() {
   const containers = new Instancer(new THREE.BoxGeometry(2.44, 2.6, 6.1), M.container);
   const leafCol = () => col(pick([0x3f7a2e, 0x4f8a34, 0x355f27, 0x5d8f3a, 0x6f9440]));
   function tree(x, z, s = 1) {
-    CITY.addCollider({ x0: x - 0.3, z0: z - 0.3, x1: x + 0.3, z1: z + 0.3, h: 2.2 }); // trunk: solid for cars, people and the camera
-    trunks.add(x, 1.5 * s + 0.18, z, s, s, s);
-    crowns.add(x, 3.6 * s + 0.18, z, 1.9 * s, 1.6 * s, 1.9 * s, rand(0, TAU), leafCol());
-    crowns.add(x + rand(-0.6, 0.6) * s, 4.7 * s + 0.18, z + rand(-0.6, 0.6) * s, 1.3 * s, 1.2 * s, 1.3 * s, rand(0, TAU), leafCol());
+    CITY.addCollider({ x0: x - 0.3, z0: z - 0.3, x1: x + 0.3, z1: z + 0.3, h: 2.2 }); // trunk: solid for cars and people; the camera passes it (it is hidden while in the way)
+    const ti = trunks.add(x, 1.5 * s + 0.18, z, s, s, s); FOLIAGE.add(ti, x, 1.5 * s + 0.18, z, 0.3 * s, 1.6 * s, trunks.m[ti], "trunks");
+    const crown = (cx, cy, cz, rx, ry) => { const i = crowns.add(cx, cy, cz, rx, ry, rx, rand(0, TAU), leafCol()); FOLIAGE.add(i, cx, cy, cz, rx, ry, crowns.m[i]); };
+    crown(x, 3.6 * s + 0.18, z, 1.9 * s, 1.6 * s);
+    crown(x + rand(-0.6, 0.6) * s, 4.7 * s + 0.18, z + rand(-0.6, 0.6) * s, 1.3 * s, 1.2 * s);
   }
 
   // blocks
@@ -760,7 +807,7 @@ function buildWorld() {
   world.add(crane.mesh(M.crane));
   for (let k = 0; k < 40; k++) containers.add(E1 + rand(6, 14), 0.18 + 1.3 + (k % 3) * 2.62, 30 + Math.floor(k / 3) * 7.5 + rand(-0.3, 0.3), 1, 1, 1, Math.PI / 2, col(pick([0xb23a2a, 0x2a5fa8, 0xd99a1e, 0x2e7d4f, 0x1f8a9a])));
 
-  lights.build(); arms.build(); heads.build(); trunks.build(); crowns.build(); benches.build(); bins.build();
+  lights.build(); arms.build(); heads.build(); FOLIAGE.trunks = trunks.build(); FOLIAGE.im = crowns.build(); benches.build(); bins.build();
   acs.build(); tanks.build(); antennas.build(); blinks.build(); containers.build();
   world.updateMatrixWorld(true);
 }
@@ -1786,12 +1833,13 @@ function updateCamera(dt) {
   const cp = Math.cos(CAMERA.pitch), sp2 = Math.sin(CAMERA.pitch);
   const want = new THREE.Vector3(target.x - Math.sin(CAMERA.yaw) * cp * dist, target.y + sp2 * dist + (inCar ? 0.6 : 0.25), target.z - Math.cos(CAMERA.yaw) * cp * dist);
   if (!inCar) { const sh = 0.55 + (CAMERA.aimBlend || 0) * 0.25, sideX = Math.cos(CAMERA.yaw) * -sh, sideZ = -Math.sin(CAMERA.yaw) * -sh; want.x += sideX; want.z += sideZ; target.x += sideX; target.z += sideZ; }
-  const tHit = raycastBoxes(target.x, target.y, target.z, want.x, want.y, want.z);
+  const tHit = raycastBoxes(target.x, target.y, target.z, want.x, want.y, want.z, 1);
   if (tHit < 1) want.lerpVectors(target, want, Math.max(0.12, tHit - 0.05));
   want.y = Math.max(want.y, CITY.groundHeight(want.x, want.z) + 0.4);
   CAMERA.pos.lerp(want, 1 - Math.exp(-(inCar ? 14 : 20) * dt));
   if (CAMERA.pos.distanceTo(want) > 30) CAMERA.pos.copy(want);
   camera.position.copy(CAMERA.pos);
+  FOLIAGE.update(CAMERA.pos, target);
   if (CAMERA.shake > 0) { camera.position.x += rand(-1, 1) * CAMERA.shake * 0.3; camera.position.y += rand(-1, 1) * CAMERA.shake * 0.3; CAMERA.shake = Math.max(0, CAMERA.shake - dt * 2.5); }
   if (inCar) camera.lookAt(target);
   else { // on foot look past the shoulder toward where the camera points, so the crosshair aims at the world, not the pavement

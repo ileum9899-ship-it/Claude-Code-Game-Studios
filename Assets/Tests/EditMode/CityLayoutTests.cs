@@ -103,6 +103,26 @@ namespace NeonHarbor.Tests
         }
 
         [Test]
+        public void Raycast_WithMinSize_PassesThinTrunkButNotBuilding()
+        {
+            // Arrange: a 0.6 m tree trunk in the middle of a road segment
+            var c = NewCity();
+            float x = c.Pitch * 2, z0 = c.Pitch * 2 + 5, z1 = c.Pitch * 3 - 5, zm = (z0 + z1) / 2;
+            c.AddCollider(new Box2(x - 0.3f, zm - 0.3f, x + 0.3f, zm + 0.3f, 2.2f));
+            var box = c.Colliders[0];
+            float bx = (box.X0 + box.X1) / 2, bz = (box.Z0 + box.Z1) / 2;
+
+            // Act
+            float plain = c.Raycast(x, 1, z0, x, 1, z1), camera = c.Raycast(x, 1, z0, x, 1, z1, 1f);
+            float building = c.Raycast(bx, 2, box.Z0 - 20, bx, 2, bz, 1f);
+
+            // Assert
+            Assert.Less(plain, 1f);
+            Assert.AreEqual(1f, camera);
+            Assert.Less(building, 1f);
+        }
+
+        [Test]
         public void SidewalkPoint_StaysOnTheBlockRing()
         {
             var c = NewCity(); var blk = c.Blocks[10];

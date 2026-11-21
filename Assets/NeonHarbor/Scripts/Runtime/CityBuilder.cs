@@ -21,6 +21,8 @@ namespace NeonHarbor.Runtime
 
         /// <summary>Ground positions of street lamps (for light pools).</summary>
         public readonly List<Vector3> LampPoints = new List<Vector3>();
+        /// <summary>Tree crowns, for the camera (it stops in front of leaves instead of inside them).</summary>
+        public readonly Foliage Crowns = new Foliage();
         /// <summary>Neon sign renderers (their emission is animated at night).</summary>
         public readonly List<(Material material, Color color)> NeonSigns = new List<(Material, Color)>();
 
@@ -100,8 +102,11 @@ namespace NeonHarbor.Runtime
             {
                 city.AddCollider(new Box2(x - 0.3f, z - 0.3f, x + 0.3f, z + 0.3f, 2.2f));
                 trunk.Add(cyl, Matrix4x4.TRS(new Vector3(x, 1.5f * s + 0.18f, z), Quaternion.identity, new Vector3(0.2f * s, 3 * s, 0.2f * s)));
-                leaves[rnd.Next(3)].Add(sph, Matrix4x4.TRS(new Vector3(x, 3.6f * s + 0.18f, z), Quaternion.Euler(0, R(0, 360), 0), new Vector3(1.9f, 1.6f, 1.9f) * s));
-                leaves[rnd.Next(3)].Add(sph, Matrix4x4.TRS(new Vector3(x + R(-0.6f, 0.6f) * s, 4.7f * s + 0.18f, z + R(-0.6f, 0.6f) * s), Quaternion.Euler(0, R(0, 360), 0), new Vector3(1.3f, 1.2f, 1.3f) * s));
+                var c0 = new Vector3(x, 3.6f * s + 0.18f, z);
+                var c1 = new Vector3(x + R(-0.6f, 0.6f) * s, 4.7f * s + 0.18f, z + R(-0.6f, 0.6f) * s);
+                leaves[rnd.Next(3)].Add(sph, Matrix4x4.TRS(c0, Quaternion.Euler(0, R(0, 360), 0), new Vector3(1.9f, 1.6f, 1.9f) * s));
+                leaves[rnd.Next(3)].Add(sph, Matrix4x4.TRS(c1, Quaternion.Euler(0, R(0, 360), 0), new Vector3(1.3f, 1.2f, 1.3f) * s));
+                Crowns.Add(c0, 1.9f * s, 1.6f * s); Crowns.Add(c1, 1.3f * s, 1.2f * s);
             }
 
             foreach (var b in blk.Buildings)

@@ -146,11 +146,13 @@ function collideCircle(p, r) {
   return hit;
 }
 // segment vs boxes (camera collision): returns t in [0,1]
-function raycastBoxes(ax, ay, az, bx, by, bz) {
+// minSize > 0 skips thin props (tree trunks, lamp posts) — the camera passes those and they are hidden instead
+function raycastBoxes(ax, ay, az, bx, by, bz, minSize = 0) {
   let best = 1;
   const cells = new Set();
   for (let s = 0; s <= 4; s++) { const t = s / 4; CITY.near(lerp(ax, bx, t), lerp(az, bz, t)).forEach(c => cells.add(c)); }
   for (const c of cells) {
+    if (minSize && c.x1 - c.x0 < minSize && c.z1 - c.z0 < minSize) continue;
     let t0 = 0, t1 = 1; const d = [bx - ax, by - ay, bz - az], o = [ax, ay, az], mn = [c.x0, 0, c.z0], mx = [c.x1, c.h, c.z1];
     let ok = true;
     for (let k = 0; k < 3 && ok; k++) {

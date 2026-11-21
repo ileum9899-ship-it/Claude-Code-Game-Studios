@@ -293,8 +293,12 @@ namespace NeonHarbor.Core
         private readonly HashSet<Box2> raySeen = new HashSet<Box2>();
         private readonly float[] rayO = new float[3], rayD = new float[3], rayMin = new float[3], rayMax = new float[3];
 
-        /// <summary>First hit along segment a→b against collider boxes, as a fraction t in [0, 1] (1 = clear).</summary>
-        public float Raycast(float ax, float ay, float az, float bx, float by, float bz)
+        /// <summary>
+        /// First hit along segment a→b against collider boxes, as a fraction t in [0, 1] (1 = clear).
+        /// Boxes narrower than <paramref name="minSize"/> on both axes (tree trunks, lamp posts) are skipped;
+        /// the camera uses this so it does not park against a trunk that then fills the screen.
+        /// </summary>
+        public float Raycast(float ax, float ay, float az, float bx, float by, float bz, float minSize = 0f)
         {
             float best = 1f;
             var seen = raySeen; seen.Clear();
@@ -307,6 +311,7 @@ namespace NeonHarbor.Core
             o[0] = ax; o[1] = ay; o[2] = az; dv[0] = bx - ax; dv[1] = by - ay; dv[2] = bz - az;
             foreach (var c in seen)
             {
+                if (minSize > 0 && c.X1 - c.X0 < minSize && c.Z1 - c.Z0 < minSize) continue;
                 mn[0] = c.X0; mn[1] = 0; mn[2] = c.Z0; mx[0] = c.X1; mx[1] = c.H; mx[2] = c.Z1;
                 float t0 = 0, t1 = 1; bool ok = true;
                 for (int k = 0; k < 3 && ok; k++)

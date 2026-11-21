@@ -6,12 +6,13 @@ namespace NeonHarbor.Runtime
     /// <summary>
     /// Third-person orbit camera: mouse orbits, wheel zooms; behind the shoulder on
     /// foot, swings behind the car when driving, widens FOV with speed, shakes on
-    /// impacts and pulls in front of buildings it would clip through.
+    /// impacts and pulls in front of buildings and tree crowns it would clip through.
     /// </summary>
     public sealed class CameraRig
     {
         private readonly Camera cam;
         private readonly CityLayout city;
+        private readonly Foliage foliage;
         private Vector3 pos;
         private float idle, fov = 60, zoom = 1;
 
@@ -26,7 +27,7 @@ namespace NeonHarbor.Runtime
         private float aimBlend;
 
         /// <summary>Wraps a camera.</summary>
-        public CameraRig(Camera cam, CityLayout city) { this.cam = cam; this.city = city; }
+        public CameraRig(Camera cam, CityLayout city, Foliage foliage = null) { this.cam = cam; this.city = city; this.foliage = foliage; }
 
         /// <summary>Snaps to a point (respawn).</summary>
         public void Snap(Vector3 p) { pos = p + new Vector3(0, 4, -6); }
@@ -65,7 +66,8 @@ namespace NeonHarbor.Runtime
             Vector3 want = target - fwd * cp * dist + Vector3.up * (spch * dist + (inCar ? 0.6f : 0.25f));
             float shoulder = 0.55f + aimBlend * 0.25f;
             if (!inCar) { want += right * shoulder; target += right * shoulder; } // over the right shoulder
-            float t = city.Raycast(target.x, target.y, target.z, want.x, want.y, want.z);
+            float t = city.Raycast(target.x, target.y, target.z, want.x, want.y, want.z, 1f); // thin trunks and posts don't stop the camera
+            if (foliage != null) t = Mathf.Min(t, foliage.Raycast(target, want, 0.35f)); // never park the camera inside a tree crown
             if (t < 1) want = Vector3.Lerp(target, want, Mathf.Max(0.12f, t - 0.05f));
             want.y = Mathf.Max(want.y, city.GroundHeight(want.x, want.z) + 0.4f);
             pos = Vector3.Lerp(pos, want, 1 - Mathf.Exp(-(inCar ? 14 : 20) * dt));
