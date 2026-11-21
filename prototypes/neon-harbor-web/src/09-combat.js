@@ -31,7 +31,7 @@ const COMBAT = (() => {
   }
   const TEX_FIRE = spriteTex("fire"), TEX_SMOKE = spriteTex("smoke");
   const FX = [];
-  function emit(kind, pos, vel, life, size, grow = 1) {
+  function emit(kind, pos, vel, life, size, grow = 1, shade = null) {
     let s = FX.find(f => !f.alive && f.kind === kind);
     if (!s) {
       if (FX.length > 420) return;
@@ -42,6 +42,7 @@ const COMBAT = (() => {
     const m = s.sprite.material;
     if (kind === "fire") m.color.setRGB(4, 1.6, 0.4); else if (kind === "spark") m.color.setRGB(5, 3.5, 1.2);
     else if (kind === "flash") m.color.setRGB(8, 6, 3); else if (kind === "hit") m.color.setRGB(0.35, 0.03, 0.03); else m.color.setRGB(0.18, 0.18, 0.2);
+    if (shade != null) m.color.setScalar(shade);
     Object.assign(s, { alive: true, pos: pos.clone(), vel: vel.clone(), life, age: 0, size, grow });
     s.sprite.visible = true;
   }
@@ -180,6 +181,7 @@ const COMBAT = (() => {
       HUD.hurt(1);
     }
     scarePeds(c, 60, 8);
+    WANTED.heard(c, CFG.gta.hearGunshot * 1.3, "폭발음");
     if (v.burnByPlayer) WANTED.crime(1, "차량 폭발");
   }
   const BURNT = new THREE.MeshStandardMaterial({ color: col(0x161412), roughness: 0.95, metalness: 0.2 });
@@ -393,6 +395,7 @@ const COMBAT = (() => {
     else if (hit.kind !== "none") for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1);
     // gunfire is noticed
     scarePeds(P.pos, 45);
+    WANTED.heard(P.pos, CFG.gta.hearGunshot, "총소리");
     if (gunfireHeatCd <= 0) { WANTED.crime(1, "총기 사용"); gunfireHeatCd = 6; }
     if (w.clip === 0 && w.reserve > 0) startReload();
   }
@@ -488,7 +491,7 @@ const COMBAT = (() => {
       for (const o of OFFICERS) dynamic.remove(o.rig.root); OFFICERS.length = 0;
       P.armor = 0; P.reload = 0;
     },
-    damageCar, explode, spawnOfficersFrom, fxTracer: (a, b) => tracer(a, b),
+    damageCar, explode, spawnOfficersFrom, fx: emit, fxTracer: (a, b) => tracer(a, b),
     debugCast() { const { o, d } = aimRay(); const startT = o.distanceTo(P.pos) - 0.2; const h = castShot(o, d, 200, Math.max(0.5, startT), P.car); return { kind: h.kind, t: h.t, o: o.toArray(), d: d.toArray(), startT }; },
   };
 })();

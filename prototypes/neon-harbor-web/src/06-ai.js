@@ -92,7 +92,8 @@ function spawnTrafficCar(nearPlayer) {
     if (VEHICLES.some(v => Math.hypot(v.pos.x - p.x, v.pos.z - p.y) < 9)) continue;
     const type = pick(["sedan", "sedan", "sedan", "suv", "suv", "taxi", "sports", "van"]);
     const car = makeCar(type);
-    car.ai = { mode: "drive", piece, s, speed: CFG.traffic.cruise * rand(0.85, 1.1), next: chooseNext(a, b), want: CFG.traffic.cruise * rand(0.85, 1.15), honk: 0 };
+    const reckless = RNG() < CFG.gta.recklessShare;
+    car.ai = { mode: "drive", piece, s, speed: CFG.traffic.cruise * rand(0.85, 1.1), next: chooseNext(a, b), want: CFG.traffic.cruise * rand(0.85, 1.15) * (reckless ? 1.5 : 1), honk: 0, reckless };
     addDriver(car);
     placeOnPiece(car);
     VEHICLES.push(car);
@@ -127,7 +128,7 @@ function updateTraffic(car, dt, time) {
   if (ai.piece.kind === "seg") {
     const toEnd = ai.piece.len - ai.s, st = LIGHTS.state(ai.piece.b[0], ai.piece.b[1], ai.piece.axis, time);
     const stopAt = toEnd - 4.6 - car.spec.len / 2;
-    if (st === 2 || (st === 1 && stopAt > ai.speed * ai.speed / 12)) {
+    if (!ai.reckless && (st === 2 || (st === 1 && stopAt > ai.speed * ai.speed / 12))) {
       if (stopAt > -0.5) want = Math.min(want, Math.max(0, Math.sqrt(Math.max(0, stopAt) * 2 * 5.5) - 0.3));
     }
   }
@@ -250,13 +251,16 @@ function resolveContacts(dt) {
       A.vel.x -= j * hit.nx / ma; A.vel.y -= j * hit.nz / ma; Bc.vel.x += j * hit.nx / mb; Bc.vel.y += j * hit.nz / mb;
       A.yawRate += rand(-1, 1) * -rv * 0.08; Bc.yawRate += rand(-1, 1) * -rv * 0.08;
       if (-rv > 4) {
-        AUDIO.crash(Math.min(1, -rv / 20));
-        const pc = PLAYER.car;
+        const pc = PLAYER.car, cx = (A.pos.x + Bc.pos.x) / 2, cz = (A.pos.z + Bc.pos.z) / 2;
+        const near = Math.hypot(cx - CAMERA.cam.position.x, cz - CAMERA.cam.position.z);
+        if (near < 90) AUDIO.crash(Math.min(1, -rv / 20) * clamp(1 - near / 90, 0.15, 1));
         if (pc === A || pc === Bc) {
-          CAMERA.shake = Math.min(1, -rv / 18); pc.health -= -rv * 1.4;
+          CAMERA.shake = Math.min(1, -rv / 18);
           const other = pc === A ? Bc : A;
           if (other.type === "police" && -rv > 6) WANTED.crime(CFG.wanted.copHit, "경찰차 충돌", true);
         }
+        CRASH.impact(A, -rv, cx, cz, -hit.nx, -hit.nz, Bc); // normal into A points from B toward A
+        CRASH.impact(Bc, -rv, cx, cz, hit.nx, hit.nz, A);
       }
     }
     syncCar(A); syncCar(Bc);

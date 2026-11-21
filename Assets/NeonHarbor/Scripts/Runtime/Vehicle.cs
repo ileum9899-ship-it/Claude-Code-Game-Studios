@@ -1,3 +1,4 @@
+using System;
 using NeonHarbor.Core;
 using UnityEngine;
 
@@ -21,7 +22,11 @@ namespace NeonHarbor.Runtime
         public bool Braking;
         /// <summary>Seconds until a burning car explodes (0 = not burning).</summary>
         public float Burning;
-        public bool BurnByPlayer, Exploded, Unloaded;
+        public bool BurnByPlayer, Exploded, Unloaded, Reckless, HeadsBroken, TailsBroken;
+        private readonly float baseSpeedFactor;
+
+        /// <summary>Raised on a wall / prop impact: (car, impact speed, contact point, normal into the car).</summary>
+        public static Action<Vehicle, float, Vector3, Vector3> WallHit;
         public HumanRig Driver;
 
         // traffic AI
@@ -43,15 +48,17 @@ namespace NeonHarbor.Runtime
         public Vehicle(CarType type, Color paint, HarborConfig cfg, HarborMaterials mats, Transform parent)
         {
             Spec = VehicleFactory.Specs[type];
-            Model = new VehicleModel(cfg) { Mass = Spec.Mass, SpeedFactor = type == CarType.Police ? cfg.CopSpeed * 0.95f : 1f };
+            baseSpeedFactor = type == CarType.Police ? cfg.CopSpeed * 0.95f : 1f;
+            Model = new VehicleModel(cfg) { Mass = Spec.Mass, SpeedFactor = baseSpeedFactor };
             Parts = VehicleFactory.Build(type, paint, mats, parent);
         }
 
         /// <summary>Physics step with city collisions. Returns the wall impact speed.</summary>
         public float Step(float dt, CityLayout city)
         {
+            Model.SpeedFactor = baseSpeedFactor * CrashModel.Performance(Health);
             Model.Step(Input, dt);
-            float impact = 0;
+            float impact = 0; Vector3 hitPoint = Vector3.zero, hitNormal = Vector3.zero;
             var f = Model.Forward;
             for (int side = 0; side < 2; side++)
             {
@@ -60,10 +67,11 @@ namespace NeonHarbor.Runtime
                 if (city.CollideCircle(ref px, ref pz, Radius, out float nx, out float nz))
                 {
                     Model.Position = new Vec2(Model.Position.X + px - ox, Model.Position.Y + pz - oz);
-                    impact = Mathf.Max(impact, Model.Bounce(nx, nz));
+                    float b = Model.Bounce(nx, nz);
+                    if (b > impact) { impact = b; hitNormal = new Vector3(nx, 0, nz); hitPoint = new Vector3(px - nx * Radius, 0, pz - nz * Radius); }
                 }
             }
-            if (impact > 3) Health -= impact * 1.2f;
+            if (impact > 3) WallHit?.Invoke(this, impact, hitPoint, hitNormal);
             float ground = city.GroundHeight(Model.Position.X, Model.Position.Y) > 0.1f ? 0.18f : 0f;
             Height = Mathx.Damp(Height, ground, 18, dt);
             float vF = Model.ForwardSpeed;

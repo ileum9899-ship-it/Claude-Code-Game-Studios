@@ -25,6 +25,7 @@ namespace NeonHarbor.Runtime
         public CombatDirector Combat { get; private set; }
         public OpenWorld Services { get; private set; }
         public PoliceForce Police { get; private set; }
+        public CrashDirector Crashes { get; private set; }
 
         private HarborHud hud;
         private HarborAudio sound;
@@ -65,6 +66,9 @@ namespace NeonHarbor.Runtime
             Services.Police = Police;
             World.PoliceBrain = (v, dt) => Police.Drive(v, dt);
             Combat.SearchTarget = o => Police.SearchTarget(o);
+            Crashes = new CrashDirector(Config, City, Materials, World, Combat, Player);
+            Vehicle.WallHit = (car, speed, point, normal) => Crashes.Impact(car, speed, point, normal, null);
+            World.CarHit = (car, speed, point, normal, other) => Crashes.Impact(car, speed, point, normal, other);
             sound = gameObject.AddComponent<HarborAudio>();
             hud = gameObject.AddComponent<HarborHud>(); hud.Init(this);
             Wire();
@@ -98,6 +102,12 @@ namespace NeonHarbor.Runtime
             Services.RadioChanged += s => sound.SetStation(s);
             Services.Fade += t => fade = t;
             Police.Toast += t => hud.Toast(t, warn);
+            Combat.Noise += (pos, range, how) => Services.Heard(pos, range, how);
+            Crashes.Noise += pos => Services.Heard(pos, Config.HearCrash, "충돌음");
+            Crashes.TrafficOffence += why => Services.Crime(0.5f, why, false, true);
+            Crashes.PlayerCrash += v => Camera.Shake = Mathf.Max(Camera.Shake, v); // sound comes from CarImpact / World.Crash
+            Crashes.Ejected += injury => { Player.Damage(injury); hud.Hurt(1); hud.Banner("앞유리 밖으로 튕겨 나갔습니다!", "", new Color(1f, 0.3f, 0.37f)); };
+            Wanted.Revealed += how => hud.Toast("경찰이 위치를 파악했습니다 · " + how, warn);
             Police.HeliShot += () => sound.Shot(true, 0.5f);
             Police.HeliHit += dmg => { Player.Damage(dmg); hud.Hurt(0.6f); };
             Combat.Toast += t => hud.Toast(t, good);
@@ -150,7 +160,8 @@ namespace NeonHarbor.Runtime
             Camera.Aim = Combat.Aiming && Player.Car == null;
             float nearestCop = Mathf.Min(World.Tick(dt, time, Wanted.Stars, Wanted.DesiredCops), Combat.NearestOfficer());
             Services.Tick(dt);
-            Wanted.Tick(dt, Services.Seen, new Vec2(Player.Position.x, Player.Position.z), Player.Car != null ? Player.Car.Speed : new Vector2(Player.Velocity.x, Player.Velocity.z).magnitude, nearestCop);
+            Crashes.Tick(dt);
+            Wanted.Tick(dt, Services.Seen, new Vec2(Player.Position.x, Player.Position.z), Player.Car != null ? Player.Car.Model.Velocity : new Vec2(Player.Velocity.x, Player.Velocity.z), nearestCop);
             if (Player.Health <= 0 && deadTimer < 0) { arrested = false; Die("의식을 잃었습니다", $"병원비 -${Config.HospitalBill} · 병원에서 깨어났습니다", 0, Config.HospitalBill); }
             Missions.Tick(dt, time, Player, Wanted.Stars);
             Day.Tick(dt, Player.Position);

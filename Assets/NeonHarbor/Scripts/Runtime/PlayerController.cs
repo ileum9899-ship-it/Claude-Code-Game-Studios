@@ -104,6 +104,18 @@ namespace NeonHarbor.Runtime
             Car = null;
         }
 
+        /// <summary>Throws the player through the windscreen after a fast head-on crash.</summary>
+        public void Eject(float speed)
+        {
+            if (Car == null) return;
+            var car = Car; var f = car.Forward;
+            if (seatedRig != null) { UnityEngine.Object.Destroy(seatedRig.Root.gameObject); seatedRig = null; }
+            car.Input = new VehicleInput { Brake = 1 }; car.Mode = VehicleMode.Parked; Car = null;
+            rig.Root.gameObject.SetActive(true);
+            Position = car.Position + f * (car.Spec.Length / 2 + 0.6f) + Vector3.up * 1.2f; Yaw = car.Model.Yaw;
+            downTimer = 0; vel = f * speed * 0.55f + Vector3.up * 4f; onGround = false; downTimer = 1.6f; KnockedDown?.Invoke();
+        }
+
         /// <summary>Moves the player back to a spawn point on foot (after arrest / knockout).</summary>
         public void Respawn(Vector3 spawn)
         {

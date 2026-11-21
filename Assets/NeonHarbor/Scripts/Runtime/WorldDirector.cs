@@ -46,6 +46,8 @@ namespace NeonHarbor.Runtime
         public Func<Vehicle, Vector3> PoliceTarget;
         /// <summary>Set by the game: drives a pursuing police car for one frame (replaces the simple chase below).</summary>
         public Action<Vehicle, float> PoliceBrain;
+        /// <summary>Set by the game: one car hit another (car, impact speed, contact point, normal into car, other car).</summary>
+        public Action<Vehicle, float, Vector3, Vector3, Vehicle> CarHit;
 
         /// <summary>Creates the director.</summary>
         public WorldDirector(HarborConfig cfg, CityLayout city, HarborMaterials mats, Transform root)
@@ -99,7 +101,8 @@ namespace NeonHarbor.Runtime
                 if (d < 70 || d > 230 || Crowded(p.X, p.Y, 9)) continue;
                 var types = new[] { CarType.Sedan, CarType.Sedan, CarType.Sedan, CarType.Suv, CarType.Suv, CarType.Taxi, CarType.Sports, CarType.Van };
                 var v = SpawnCar(types[rnd.Next(types.Length)]);
-                v.Mode = VehicleMode.Traffic; v.Piece = piece; v.S = s; v.Want = cfg.TrafficCruise * R(0.85f, 1.15f); v.AiSpeed = v.Want * 0.9f; v.Next = ChooseNext(a, b);
+                v.Reckless = rnd.NextDouble() < cfg.RecklessShare;
+                v.Mode = VehicleMode.Traffic; v.Piece = piece; v.S = s; v.Want = cfg.TrafficCruise * R(0.85f, 1.15f) * (v.Reckless ? 1.5f : 1f); v.AiSpeed = v.Want * 0.9f; v.Next = ChooseNext(a, b);
                 AddDriver(v); PlaceOnPiece(v);
                 return true;
             }
@@ -233,7 +236,7 @@ namespace NeonHarbor.Runtime
             {
                 float toEnd = v.Piece.Length - v.S; var st = lights.State(v.Piece.B.Item1, v.Piece.B.Item2, v.Piece.Axis, time);
                 float stopAt = toEnd - 4.6f - v.Spec.Length / 2;
-                if (st == Signal.Red || (st == Signal.Yellow && stopAt > v.AiSpeed * v.AiSpeed / 12f))
+                if (!v.Reckless && (st == Signal.Red || (st == Signal.Yellow && stopAt > v.AiSpeed * v.AiSpeed / 12f)))
                     if (stopAt > -0.5f) want = Mathf.Min(want, Mathf.Max(0, Mathf.Sqrt(Mathf.Max(0, stopAt) * 2 * 5.5f) - 0.3f));
             }
             float gap = ObstacleAhead(v, cfg.FollowGap * 2.2f);
@@ -392,11 +395,15 @@ namespace NeonHarbor.Runtime
                             Crash?.Invoke(Mathf.Min(1, -rv / 20), involvesPlayer);
                             if (involvesPlayer)
                             {
-                                Player.Car.Health -= -rv * 1.4f;
                                 var other = A == Player.Car ? B : A;
                                 if (other.Spec.Type == CarType.Police && -rv > 6) CopRammed?.Invoke(-rv);
                             }
                         }
+                    }
+                    if (rv < -4 && CarHit != null)
+                    {
+                        var mid = (A.Position + B.Position) * 0.5f; var n = new Vector3(hnx, 0, hnz);
+                        CarHit(A, -rv, mid, -n, B); CarHit(B, -rv, mid, n, A);
                     }
                     A.Sync(); B.Sync();
                 }

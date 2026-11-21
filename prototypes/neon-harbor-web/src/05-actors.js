@@ -189,7 +189,7 @@ function stepCar(car, dt, isPolice = false) {
   const C = CFG.car;
   const f = forwardOf(car), r = new THREE.Vector2(f.y, -f.x); // right = (cos, -sin)
   let vF = car.vel.dot(f), vR = car.vel.dot(r);
-  const maxF = C.maxSpeed * (isPolice ? CFG.wanted.copSpeed * 0.95 : 1) / Math.sqrt(car.mass);
+  const maxF = C.maxSpeed * (isPolice ? CFG.wanted.copSpeed * 0.95 : 1) / Math.sqrt(car.mass) * CRASH_MODEL.performance(car.health);
   // longitudinal
   let acc = 0;
   if (car.throttle > 0) acc += (vF < -0.5 ? C.brake : C.accel * (1 - clamp(vF / maxF, 0, 1) * 0.85)) * car.throttle * (isPolice ? 1.15 : 1);
@@ -219,10 +219,10 @@ function stepCar(car, dt, isPolice = false) {
     if (hit) {
       car.pos.x += p.x - (car.pos.x + nf.x * off); car.pos.z += p.z - (car.pos.z + nf.y * off);
       const vn = car.vel.x * hit.x + car.vel.y * hit.z;
-      if (vn < 0) { car.vel.x -= vn * 1.35 * hit.x; car.vel.y -= vn * 1.35 * hit.z; car.vel.multiplyScalar(0.8); impact = Math.max(impact, -vn); car.yawRate *= 0.5; }
+      if (vn < 0) { car.vel.x -= vn * 1.35 * hit.x; car.vel.y -= vn * 1.35 * hit.z; car.vel.multiplyScalar(0.8); if (-vn > impact) { impact = -vn; car.hitAt = { x: p.x - hit.x * car.radius, z: p.z - hit.z * car.radius, nx: hit.x, nz: hit.z }; } car.yawRate *= 0.5; }
     }
   }
-  if (impact > 3) { car.health -= impact * 1.2; car.lastHit = performance.now(); }
+  if (impact > 3) { car.lastHit = performance.now(); CRASH.impact(car, impact, car.hitAt.x, car.hitAt.z, car.hitAt.nx, car.hitAt.nz, null); }
   // visuals
   const ground = CITY.groundHeight(car.pos.x, car.pos.z) > 0.1 ? 0.18 : 0;
   car.pos.y = damp(car.pos.y, ground, 18, dt);

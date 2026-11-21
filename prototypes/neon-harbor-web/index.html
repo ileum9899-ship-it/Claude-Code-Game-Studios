@@ -1044,7 +1044,7 @@ function stepCar(car, dt, isPolice = false) {
   const C = CFG.car;
   const f = forwardOf(car), r = new THREE.Vector2(f.y, -f.x); // right = (cos, -sin)
   let vF = car.vel.dot(f), vR = car.vel.dot(r);
-  const maxF = C.maxSpeed * (isPolice ? CFG.wanted.copSpeed * 0.95 : 1) / Math.sqrt(car.mass);
+  const maxF = C.maxSpeed * (isPolice ? CFG.wanted.copSpeed * 0.95 : 1) / Math.sqrt(car.mass) * CRASH_MODEL.performance(car.health);
   // longitudinal
   let acc = 0;
   if (car.throttle > 0) acc += (vF < -0.5 ? C.brake : C.accel * (1 - clamp(vF / maxF, 0, 1) * 0.85)) * car.throttle * (isPolice ? 1.15 : 1);
@@ -1074,10 +1074,10 @@ function stepCar(car, dt, isPolice = false) {
     if (hit) {
       car.pos.x += p.x - (car.pos.x + nf.x * off); car.pos.z += p.z - (car.pos.z + nf.y * off);
       const vn = car.vel.x * hit.x + car.vel.y * hit.z;
-      if (vn < 0) { car.vel.x -= vn * 1.35 * hit.x; car.vel.y -= vn * 1.35 * hit.z; car.vel.multiplyScalar(0.8); impact = Math.max(impact, -vn); car.yawRate *= 0.5; }
+      if (vn < 0) { car.vel.x -= vn * 1.35 * hit.x; car.vel.y -= vn * 1.35 * hit.z; car.vel.multiplyScalar(0.8); if (-vn > impact) { impact = -vn; car.hitAt = { x: p.x - hit.x * car.radius, z: p.z - hit.z * car.radius, nx: hit.x, nz: hit.z }; } car.yawRate *= 0.5; }
     }
   }
-  if (impact > 3) { car.health -= impact * 1.2; car.lastHit = performance.now(); }
+  if (impact > 3) { car.lastHit = performance.now(); CRASH.impact(car, impact, car.hitAt.x, car.hitAt.z, car.hitAt.nx, car.hitAt.nz, null); }
   // visuals
   const ground = CITY.groundHeight(car.pos.x, car.pos.z) > 0.1 ? 0.18 : 0;
   car.pos.y = damp(car.pos.y, ground, 18, dt);
@@ -1190,7 +1190,8 @@ function spawnTrafficCar(nearPlayer) {
     if (VEHICLES.some(v => Math.hypot(v.pos.x - p.x, v.pos.z - p.y) < 9)) continue;
     const type = pick(["sedan", "sedan", "sedan", "suv", "suv", "taxi", "sports", "van"]);
     const car = makeCar(type);
-    car.ai = { mode: "drive", piece, s, speed: CFG.traffic.cruise * rand(0.85, 1.1), next: chooseNext(a, b), want: CFG.traffic.cruise * rand(0.85, 1.15), honk: 0 };
+    const reckless = RNG() < CFG.gta.recklessShare;
+    car.ai = { mode: "drive", piece, s, speed: CFG.traffic.cruise * rand(0.85, 1.1), next: chooseNext(a, b), want: CFG.traffic.cruise * rand(0.85, 1.15) * (reckless ? 1.5 : 1), honk: 0, reckless };
     addDriver(car);
     placeOnPiece(car);
     VEHICLES.push(car);
@@ -1225,7 +1226,7 @@ function updateTraffic(car, dt, time) {
   if (ai.piece.kind === "seg") {
     const toEnd = ai.piece.len - ai.s, st = LIGHTS.state(ai.piece.b[0], ai.piece.b[1], ai.piece.axis, time);
     const stopAt = toEnd - 4.6 - car.spec.len / 2;
-    if (st === 2 || (st === 1 && stopAt > ai.speed * ai.speed / 12)) {
+    if (!ai.reckless && (st === 2 || (st === 1 && stopAt > ai.speed * ai.speed / 12))) {
       if (stopAt > -0.5) want = Math.min(want, Math.max(0, Math.sqrt(Math.max(0, stopAt) * 2 * 5.5) - 0.3));
     }
   }
@@ -1348,13 +1349,16 @@ function resolveContacts(dt) {
       A.vel.x -= j * hit.nx / ma; A.vel.y -= j * hit.nz / ma; Bc.vel.x += j * hit.nx / mb; Bc.vel.y += j * hit.nz / mb;
       A.yawRate += rand(-1, 1) * -rv * 0.08; Bc.yawRate += rand(-1, 1) * -rv * 0.08;
       if (-rv > 4) {
-        AUDIO.crash(Math.min(1, -rv / 20));
-        const pc = PLAYER.car;
+        const pc = PLAYER.car, cx = (A.pos.x + Bc.pos.x) / 2, cz = (A.pos.z + Bc.pos.z) / 2;
+        const near = Math.hypot(cx - CAMERA.cam.position.x, cz - CAMERA.cam.position.z);
+        if (near < 90) AUDIO.crash(Math.min(1, -rv / 20) * clamp(1 - near / 90, 0.15, 1));
         if (pc === A || pc === Bc) {
-          CAMERA.shake = Math.min(1, -rv / 18); pc.health -= -rv * 1.4;
+          CAMERA.shake = Math.min(1, -rv / 18);
           const other = pc === A ? Bc : A;
           if (other.type === "police" && -rv > 6) WANTED.crime(CFG.wanted.copHit, "경찰차 충돌", true);
         }
+        CRASH.impact(A, -rv, cx, cz, -hit.nx, -hit.nz, Bc); // normal into A points from B toward A
+        CRASH.impact(Bc, -rv, cx, cz, hit.nx, hit.nz, A);
       }
     }
     syncCar(A); syncCar(Bc);
@@ -2073,7 +2077,7 @@ function frame(now) {
   resolveContacts(dt);
   for (const p of PEDS) updatePed(p, dt);
   const nearestCop = updateWanted(dt);
-  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT); COMBAT.update(dt, clockT);
+  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT); COMBAT.update(dt, clockT); CRASH.update(dt);
   LIGHTS.update(clockT);
   manageSpawns(dt);
   const env = updateDay(dt);
@@ -2099,7 +2103,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { POLICE, PT, PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { CRASH, CRASH_MODEL, POLICE, PT, PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }
@@ -2143,7 +2147,7 @@ const COMBAT = (() => {
   }
   const TEX_FIRE = spriteTex("fire"), TEX_SMOKE = spriteTex("smoke");
   const FX = [];
-  function emit(kind, pos, vel, life, size, grow = 1) {
+  function emit(kind, pos, vel, life, size, grow = 1, shade = null) {
     let s = FX.find(f => !f.alive && f.kind === kind);
     if (!s) {
       if (FX.length > 420) return;
@@ -2154,6 +2158,7 @@ const COMBAT = (() => {
     const m = s.sprite.material;
     if (kind === "fire") m.color.setRGB(4, 1.6, 0.4); else if (kind === "spark") m.color.setRGB(5, 3.5, 1.2);
     else if (kind === "flash") m.color.setRGB(8, 6, 3); else if (kind === "hit") m.color.setRGB(0.35, 0.03, 0.03); else m.color.setRGB(0.18, 0.18, 0.2);
+    if (shade != null) m.color.setScalar(shade);
     Object.assign(s, { alive: true, pos: pos.clone(), vel: vel.clone(), life, age: 0, size, grow });
     s.sprite.visible = true;
   }
@@ -2292,6 +2297,7 @@ const COMBAT = (() => {
       HUD.hurt(1);
     }
     scarePeds(c, 60, 8);
+    WANTED.heard(c, CFG.gta.hearGunshot * 1.3, "폭발음");
     if (v.burnByPlayer) WANTED.crime(1, "차량 폭발");
   }
   const BURNT = new THREE.MeshStandardMaterial({ color: col(0x161412), roughness: 0.95, metalness: 0.2 });
@@ -2505,6 +2511,7 @@ const COMBAT = (() => {
     else if (hit.kind !== "none") for (let k = 0; k < 4; k++) emit("spark", end, new THREE.Vector3(rand(-2, 2), rand(1, 3), rand(-2, 2)), 0.3, 0.1);
     // gunfire is noticed
     scarePeds(P.pos, 45);
+    WANTED.heard(P.pos, CFG.gta.hearGunshot, "총소리");
     if (gunfireHeatCd <= 0) { WANTED.crime(1, "총기 사용"); gunfireHeatCd = 6; }
     if (w.clip === 0 && w.reserve > 0) startReload();
   }
@@ -2600,7 +2607,7 @@ const COMBAT = (() => {
       for (const o of OFFICERS) dynamic.remove(o.rig.root); OFFICERS.length = 0;
       P.armor = 0; P.reload = 0;
     },
-    damageCar, explode, spawnOfficersFrom, fxTracer: (a, b) => tracer(a, b),
+    damageCar, explode, spawnOfficersFrom, fx: emit, fxTracer: (a, b) => tracer(a, b),
     debugCast() { const { o, d } = aimRay(); const startT = o.distanceTo(P.pos) - 0.2; const h = castShot(o, d, 200, Math.max(0.5, startT), P.car); return { kind: h.kind, t: h.t, o: o.toArray(), d: d.toArray(), startT }; },
   };
 })();
@@ -2608,7 +2615,8 @@ const COMBAT = (() => {
 // weapon wheel, gun shop, spray garage, hospital / police station, car radio, health regen.
 // Mirrors Core/WantedSystem.cs and Core/Shop.cs in the Unity build.
 CFG.gta = {
-  witnessDelay: 4, witnessRadius: 30, searchBase: 60, searchPerStar: 25, sightCar: 90, sightFoot: 70,
+  witnessDelay: 4, witnessRadius: 30, searchBase: 60, searchPerStar: 25, sightCar: 90, sightFoot: 70, nearCar: 25, nearFoot: 18,
+  evadeBase: 15, evadePerStar: 8, hearGunshot: 120, hearCrash: 60, sightingInterval: 10, recklessShare: 0.08,
   prices: { pistol: 400, smg: 1200, pistolAmmo: 60, smgAmmo: 120, armor: 300 }, sprayCost: 100, hospitalBill: 200,
   regenCap: 50, regenDelay: 5, regenRate: 3,
 };
@@ -2629,18 +2637,19 @@ const PLACES = (() => {
 const WANTED = (() => {
   const P = PLAYER, G = CFG.gta;
   const reports = [];
-  const st = { seen: false, searching: false, lastKnown: new THREE.Vector3(), anchor: false, searchPts: new Map() };
+  const st = { seen: false, searching: false, lastKnown: new THREE.Vector3(), anchor: false, searchPts: new Map(), lastVel: { x: 0, z: 0 }, lostTime: 0, sightingT: 0 };
+  const evadeTime = () => G.evadeBase + G.evadePerStar * P.stars;
   const radius = () => G.searchBase + G.searchPerStar * P.stars;
   function copCanSee() {
     const eye = new THREE.Vector3(P.pos.x, (P.car ? 1.0 : P.pos.y + 1.4), P.pos.z);
     // police see in a forward cone (and all around up close), never through buildings; the helicopter sees from above
     for (const v of VEHICLES) {
       if (v.type !== "police" || v.exploded || !v.ai || (v.ai.mode !== "police" && !(v.ai.mode === "parked" && P.stars > 0))) continue;
-      if (!PT.inView(v.pos.x, v.pos.z, v.yaw, eye.x, eye.z, 2.4, G.sightCar, 18)) continue;
+      if (!PT.inView(v.pos.x, v.pos.z, v.yaw, eye.x, eye.z, 2.4, G.sightCar, G.nearCar)) continue;
       if (raycastBoxes(v.pos.x, 1.4, v.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
     }
     for (const o of COMBAT.OFFICERS) {
-      if (o.down || !PT.inView(o.pos.x, o.pos.z, o.yaw, eye.x, eye.z, 2.8, G.sightFoot, 12)) continue;
+      if (o.down || !PT.inView(o.pos.x, o.pos.z, o.yaw, eye.x, eye.z, 2.8, G.sightFoot, G.nearFoot)) continue;
       if (raycastBoxes(o.pos.x, o.pos.y + 1.5, o.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
     }
     return POLICE.heliSees();
@@ -2661,12 +2670,33 @@ const WANTED = (() => {
     st, radius,
     raise,
     // a crime: police witnesses count now, bystanders phone it in, nobody watching → nothing
-    crime(n, why, againstPolice = false) {
+    crime(n, why, againstPolice = false, policeOnly = false) {
       if (againstPolice || copCanSee()) { raise(n, why); return; }
+      if (policeOnly) return;
       if (witnessed()) { reports.push({ t: G.witnessDelay, n, why }); if (reports.length === 1) HUD.toast("누군가 휴대폰을 꺼냈습니다…", "warn"); }
     },
     get pending() { return reports.length; },
-    clear() { P.heat = 0; P.stars = 0; P.evade = 0; P.bust = 0; reports.length = 0; st.searching = false; },
+    clear() { P.heat = 0; P.stars = 0; P.evade = 0; P.bust = 0; reports.length = 0; st.searching = false; st.lostTime = 0; st.lastVel = { x: 0, z: 0 }; },
+    evadeTime,
+    // police learned where the player is without seeing them: re-centre the search, restart the escape
+    reveal(pos, how) {
+      if (P.stars === 0 || !st.searching) return;
+      st.lastKnown.set(pos.x, 0, pos.z); P.evade = 0; st.lostTime = 0;
+      HUD.toast(`경찰이 위치를 파악했습니다 · ${how}`, "warn");
+    },
+    // a noise at pos: any police unit within range hears it
+    heard(pos, range, how) {
+      if (P.stars === 0 || !st.searching) return;
+      const near = VEHICLES.some(v => v.type === "police" && !v.exploded && Math.hypot(v.pos.x - pos.x, v.pos.z - pos.z) < range) ||
+        COMBAT.OFFICERS.some(o => !o.down && Math.hypot(o.pos.x - pos.x, o.pos.z - pos.z) < range) ||
+        (POLICE.heli && Math.hypot(POLICE.heli.pos.x - pos.x, POLICE.heli.pos.z - pos.z) < range);
+      if (near) this.reveal(pos, how);
+    },
+    drift() {
+      const v = Math.hypot(st.lastVel.x, st.lastVel.z); if (v < 0.5) return { x: 0, z: 0 };
+      const reach = Math.min(v * Math.min(st.lostTime, 6), radius() * 0.7);
+      return { x: st.lastVel.x / v * reach, z: st.lastVel.z / v * reach };
+    },
     update(dt) {
       for (let k = reports.length - 1; k >= 0; k--) {
         const r = reports[k]; r.t -= dt; if (r.t > 0) continue;
@@ -2675,12 +2705,23 @@ const WANTED = (() => {
       st.seen = P.stars > 0 && copCanSee();
       if (P.stars === 0) { st.searching = false; P.bust = 0; return; }
       if (st.anchor) { st.lastKnown.copy(P.pos); st.anchor = false; }
-      if (st.seen) { st.lastKnown.copy(P.pos); st.searching = false; P.evade = 0; }
+      if (st.seen) {
+        st.lastKnown.copy(P.pos); st.searching = false; P.evade = 0; st.lostTime = 0;
+        st.lastVel = P.car ? { x: P.car.vel.x, z: P.car.vel.y } : { x: P.vel.x, z: P.vel.z };
+      }
       else {
-        st.searching = true;
+        st.searching = true; st.lostTime += dt;
+        // bystanders who see a wanted player call it in
+        st.sightingT -= dt;
+        if (st.sightingT <= 0) {
+          st.sightingT = 1;
+          const eye = new THREE.Vector3(P.pos.x, P.pos.y + 1.4, P.pos.z);
+          const spotter = PEDS.find(p => p.state === "walk" && p.pos.distanceTo(P.pos) < 25 && raycastBoxes(p.pos.x, 1.6, p.pos.z, eye.x, eye.y, eye.z) >= 0.999);
+          if (spotter && Math.random() < 0.5) { st.sightingT = G.sightingInterval; this.reveal(P.pos, "시민 제보"); }
+        }
         if (Math.hypot(P.pos.x - st.lastKnown.x, P.pos.z - st.lastKnown.z) > radius()) {
           P.evade += dt;
-          if (P.evade > CFG.wanted.evadeSeconds) { this.clear(); HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
+          if (P.evade > evadeTime()) { this.clear(); HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
         }
       }
     },
@@ -2956,7 +2997,15 @@ const PT = {
     if (d < near) return true; if (d > range) return false;
     return Math.abs(angDiff(yaw, Math.atan2(dx, dz))) <= fov / 2;
   },
-  searchWaypoint(lk, radius, unit, units, leg) {
+  searchWaypoint(lk, radius, unit, units, leg, drift) {
+    if (drift && leg >= 1 && Math.hypot(drift.x, drift.z) > 1e-3) {
+      let dx = drift.x, dz = drift.z; const dl = Math.hypot(dx, dz), maxD = radius * 0.7; if (dl > maxD) { dx *= maxD / dl; dz *= maxD / dl; }
+      const k = leg === 1 ? 0.6 : 1, cx = lk.x + dx * k, cz = lk.z + dz * k;
+      let p = leg === 1 ? new THREE.Vector3(cx, 0, cz) : PT.searchWaypoint({ x: cx, z: cz }, radius * 0.6, unit, units, Math.max(1, leg - 1));
+      const ox = p.x - lk.x, oz = p.z - lk.z, ol = Math.hypot(ox, oz), lim = radius * 0.9;
+      if (ol > lim) p = new THREE.Vector3(lk.x + ox / ol * lim, 0, lk.z + oz / ol * lim);
+      return p;
+    }
     units = Math.max(1, units); const sector = TAU / units, base = unit * sector;
     if (leg <= 0) { const a0 = base + sector * 0.5; return new THREE.Vector3(lk.x + Math.cos(a0) * 6, 0, lk.z + Math.sin(a0) * 6); }
     const frac = Math.min(0.9, 0.25 + 0.2 * (leg - 1)), ang = base + sector * (0.2 + 0.6 * (((leg - 1) * 0.618) % 1));
@@ -2978,7 +3027,7 @@ const POLICE = (() => {
     const lk = WANTED.st.lastKnown; let L = legs.get(u);
     if (!L) legs.set(u, L = { leg: 0, t: 0, ax: lk.x, az: lk.z });
     if (Math.hypot(L.ax - lk.x, L.az - lk.z) > 5) { L.ax = lk.x; L.az = lk.z; L.leg = 0; L.t = 0; } // new sighting: start over at it
-    const p = PT.searchWaypoint(lk, WANTED.radius(), unitIndex(u) % 4, Math.min(4, Math.max(1, units.size)), L.leg);
+    const p = PT.searchWaypoint(lk, WANTED.radius(), unitIndex(u) % 4, Math.min(4, Math.max(1, units.size)), L.leg, WANTED.drift());
     const at = u.pos || (u.g && u.pos) || null; L.t += 1 / 60;
     if ((at && Math.hypot(at.x - p.x, at.z - p.z) < 14) || L.t > 15) { L.leg++; L.t = 0; }
     return p;
@@ -3194,6 +3243,113 @@ const POLICE = (() => {
     heliSees() { return !!(heli && heli.sees); },
     debugRoadblockNow() { roadblockCd = 0; }, // test hook
     get heli() { return heli; },
+  };
+})();
+// ---------------------------------------------------------------- vehicle accidents (= Core/CrashModel.cs):
+// impact damage, dented bodywork, broken lights, debris, engine smoke, windscreen ejection,
+// reckless traffic that runs red lights, drivers who get out of wrecks.
+const CRASH_MODEL = {
+  damage(v) { return v < 3 ? 0 : Math.min(120, 1.1 * Math.pow(v - 3, 1.35)); },
+  dent(v) { return clamp((v - 4) * 0.012, 0, 0.28); },
+  lightsBreak(v) { return v >= 9; },
+  frontal(fx, fz, nx, nz) { return Math.max(0, -(fx * nx + fz * nz)); }, // n points out of the obstacle, into the car
+  ejects(v, frontal) { return v * frontal >= 24; },
+  injury(v) { return clamp(15 + (v - 24) * 2.5, 15, 60); },
+  smoke(h) { return h < 25 ? 2 : h < 50 ? 1 : 0; },
+  performance(h) { return lerp(0.55, 1, clamp(h / 60, 0, 1)); },
+};
+
+const CRASH = (() => {
+  const P = PLAYER;
+  const MAT_BROKEN = new THREE.MeshStandardMaterial({ color: col(0x1a1a1a), roughness: 0.6 });
+
+  // push body vertices near the contact point inward (car-local space); body geometry is cloned on first dent
+  function dent(car, wx, wz, wy, nx, nz, depth) {
+    const bodyMesh = car.body.children[0]; if (!bodyMesh || !bodyMesh.geometry) return;
+    if (!car.dented) { bodyMesh.geometry = bodyMesh.geometry.clone(); car.dented = true; }
+    const s = Math.sin(-car.yaw), c = Math.cos(-car.yaw);
+    const lx = (wx - car.pos.x) * c + (wz - car.pos.z) * s, lz = -(wx - car.pos.x) * s + (wz - car.pos.z) * c;
+    const lnx = nx * c + nz * s, lnz = -nx * s + nz * c; // into the car, local
+    const pos = bodyMesh.geometry.attributes.position, R = 0.95;
+    for (let k = 0; k < pos.count; k++) {
+      const dx = pos.getX(k) - lx, dy = pos.getY(k) - wy, dz = pos.getZ(k) - lz, d = Math.sqrt(dx * dx + dy * dy * 0.5 + dz * dz);
+      if (d >= R) continue;
+      const f = depth * (1 - d / R) * (0.8 + 0.4 * Math.random());
+      pos.setX(k, pos.getX(k) + lnx * f); pos.setZ(k, pos.getZ(k) + lnz * f); pos.setY(k, pos.getY(k) - f * 0.25);
+    }
+    pos.needsUpdate = true; bodyMesh.geometry.computeVertexNormals();
+  }
+
+  function breakLights(car, front) {
+    const list = front ? car.heads : car.tails;
+    if (!list) return;
+    list.forEach(m => { m.material = MAT_BROKEN; });
+    if (front) car.headsBroken = true; else car.tailsBroken = true;
+  }
+
+  function debris(x, y, z, v) {
+    const n = Math.min(14, 3 + v * 0.5);
+    for (let k = 0; k < n; k++) COMBAT.fx("spark", new THREE.Vector3(x, y, z), new THREE.Vector3(rand(-3, 3), rand(1, 4), rand(-3, 3)), rand(0.2, 0.45), rand(0.06, 0.14));
+    if (v > 9) for (let k = 0; k < 4; k++) COMBAT.fx("smoke", new THREE.Vector3(x, y, z), new THREE.Vector3(rand(-1, 1), rand(0.5, 1.5), rand(-1, 1)), rand(0.8, 1.5), 0.8, 2);
+  }
+
+  function eject(car, speed) {
+    // the player goes through the windscreen
+    const f = forwardOf(car);
+    if (car.driverMesh) { car.body.remove(car.driverMesh.root); car.driverMesh = null; }
+    car.ai = { mode: "parked" }; car.throttle = 0; car.brake = 1;
+    P.car = null; P.rig.root.visible = true;
+    P.pos.set(car.pos.x + f.x * (car.spec.len / 2 + 0.6), 1.2, car.pos.z + f.y * (car.spec.len / 2 + 0.6));
+    P.yaw = car.yaw;
+    P.downTimer = 0; P.knock(f.x * speed * 0.55, f.y * speed * 0.55, 0);
+    P.health -= CRASH_MODEL.injury(speed); HUD.hurt(1);
+    HUD.big("앞유리 밖으로 튕겨 나갔습니다!", "", "bad");
+  }
+
+  // one impact on one car; (nx, nz) is the contact normal pointing INTO this car
+  function impact(car, speed, px, pz, nx, nz, other) {
+    if (car.exploded || speed < 3) return;
+    car.health -= CRASH_MODEL.damage(speed);
+    const depth = CRASH_MODEL.dent(speed);
+    if (depth > 0) dent(car, px, pz, 0.75, nx, nz, depth);
+    const f = forwardOf(car), front = (px - car.pos.x) * f.x + (pz - car.pos.z) * f.y > 0;
+    if (CRASH_MODEL.lightsBreak(speed) && !(front ? car.headsBroken : car.tailsBroken)) breakLights(car, front);
+    debris(px, 0.8, pz, speed);
+    if (car === P.car) {
+      const frontal = CRASH_MODEL.frontal(f.x, f.y, nx, nz);
+      if (CRASH_MODEL.ejects(speed, frontal)) { eject(car, speed); return; }
+      if (speed > 8) WANTED.heard(P.pos, CFG.gta.hearCrash, "충돌음");
+      if (other && other.type !== "police" && speed > 6) WANTED.crime(0.5, "교통사고", false, true); // only counts if police see it
+    }
+  }
+
+  // drivers of wrecked traffic cars get out once the car stops: shaken, then walk (or run) away
+  function bailOut(v, dt) {
+    if (v.bailed || !v.ai || v.ai.mode !== "wreck" || !v.driverMesh) return;
+    if (speedOf(v) > 0.5) { v.bailT = 0; return; }
+    v.bailT = (v.bailT || 0) + dt; if (v.bailT < 1.5) return;
+    v.bailed = true; v.body.remove(v.driverMesh.root); v.driverMesh = null;
+    const blk = CITY.blockAt(v.pos.x + 8, v.pos.z) || CITY.blockAt(v.pos.x - 8, v.pos.z) || CITY.blockAt(v.pos.x, v.pos.z + 8) || CITY.blockAt(v.pos.x, v.pos.z - 8);
+    if (!blk) return;
+    const p = spawnPed(blk); const f = forwardOf(v);
+    p.pos.set(v.pos.x - f.y * 2, 0.18, v.pos.z + f.x * 2);
+    if (v.health < 60 || P.stars > 0) { p.state = "flee"; p.timer = 6; p.threat = v.pos.clone(); }
+  }
+
+  let smokeAcc = 0;
+  return {
+    MAT_BROKEN, impact,
+    update(dt) {
+      smokeAcc += dt;
+      const puff = smokeAcc > 0.12; if (puff) smokeAcc = 0;
+      for (const v of VEHICLES) {
+        bailOut(v, dt);
+        if (!puff || v.exploded || v.burning) continue;
+        const lvl = CRASH_MODEL.smoke(v.health); if (!lvl) continue;
+        const f = forwardOf(v), x = v.pos.x + f.x * v.spec.len * 0.38, z = v.pos.z + f.y * v.spec.len * 0.38;
+        COMBAT.fx("smoke", new THREE.Vector3(x, 1.1, z), new THREE.Vector3(rand(-0.3, 0.3), rand(1.2, 2.2), rand(-0.3, 0.3)), lvl === 2 ? 2.2 : 1.4, lvl === 2 ? 1.1 : 0.7, 2.5, lvl === 2 ? 0.06 : 0.35);
+      }
+    },
   };
 })();
 </script>

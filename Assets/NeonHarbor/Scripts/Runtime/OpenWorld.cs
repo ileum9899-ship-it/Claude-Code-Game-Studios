@@ -91,12 +91,12 @@ namespace NeonHarbor.Runtime
             foreach (var v in world.Vehicles)
             {
                 if (v.Spec.Type != CarType.Police || v.Exploded || v.Driver == null && v.Mode != VehicleMode.Police) continue;
-                if (!PoliceForce.InView(v.Position, v.Model.Yaw, eye, 2.4f, cfg.CopSightCar, 18)) continue;
+                if (!PoliceForce.InView(v.Position, v.Model.Yaw, eye, 2.4f, cfg.CopSightCar, cfg.CopNearSightCar)) continue;
                 if (city.Raycast(v.Position.x, 1.4f, v.Position.z, eye.x, eye.y, eye.z) >= 0.999f) return true;
             }
             foreach (var o in combat.Officers)
             {
-                if (o.Down || !PoliceForce.InView(o.Pos, o.Yaw, eye, CombatDirector.OfficerFov, cfg.CopSightFoot, 12)) continue;
+                if (o.Down || !PoliceForce.InView(o.Pos, o.Yaw, eye, CombatDirector.OfficerFov, cfg.CopSightFoot, cfg.CopNearSightFoot)) continue;
                 if (city.Raycast(o.Pos.x, o.Pos.y + 1.5f, o.Pos.z, eye.x, eye.y, eye.z) >= 0.999f) return true;
             }
             return Police != null && Police.HeliSees;
@@ -110,11 +110,39 @@ namespace NeonHarbor.Runtime
         }
 
         /// <summary>A crime: police see it → stars now; bystanders → a phone call in a few seconds; nobody → nothing.</summary>
-        public void Crime(float amount, string why, bool againstPolice = false)
+        public void Crime(float amount, string why, bool againstPolice = false, bool policeOnly = false)
         {
-            bool sees = againstPolice || CopSees(), witness = !sees && Witnessed();
+            bool sees = againstPolice || CopSees(), witness = !sees && !policeOnly && Witnessed();
             int pending = wanted.PendingReports;
             if (wanted.ReportCrime(amount, why, sees, witness) && !sees && pending == 0) Toast?.Invoke("누군가 휴대폰을 꺼냈습니다…");
+        }
+
+        /// <summary>A noise at a position: any police unit (car, officer, helicopter) within range hears it and the search moves there.</summary>
+        public void Heard(Vector3 pos, float range, string how)
+        {
+            if (wanted.Stars == 0 || !wanted.Searching) return;
+            bool near = false;
+            foreach (var v in world.Vehicles) if (v.Spec.Type == CarType.Police && !v.Exploded && Vector3.Distance(v.Position, pos) < range) { near = true; break; }
+            if (!near) foreach (var o in combat.Officers) if (!o.Down && Vector3.Distance(o.Pos, pos) < range) { near = true; break; }
+            if (near) wanted.Reveal(new Vec2(pos.x, pos.z), how);
+        }
+
+        private float sightingTimer;
+
+        // bystanders who see a wanted player while police search call it in
+        private void Sightings(float dt)
+        {
+            if (wanted.Stars == 0 || !wanted.Searching) return;
+            sightingTimer -= dt; if (sightingTimer > 0) return;
+            sightingTimer = 1;
+            Vector3 eye = player.Position + Vector3.up * 1.4f;
+            foreach (var p in world.Peds)
+            {
+                if (p.Mode != Pedestrian.State.Walk || Vector3.Distance(p.Pos, player.Position) > 25) continue;
+                if (city.Raycast(p.Pos.x, 1.6f, p.Pos.z, eye.x, eye.y, eye.z) < 0.999f) continue;
+                if (rnd.NextDouble() < 0.5) { sightingTimer = cfg.SightingInterval; wanted.Reveal(new Vec2(player.Position.x, player.Position.z), "시민 제보"); }
+                return;
+            }
         }
 
         /// <summary>Where a police unit should head: the player when seen, else a point inside the search area.</summary>
@@ -183,6 +211,7 @@ namespace NeonHarbor.Runtime
         public void Tick(float dt)
         {
             Seen = wanted.Stars > 0 && CopSees();
+            Sightings(dt);
             routeTimer -= Time.unscaledDeltaTime;
             if (routeTimer <= 0) { routeTimer = 0.5f; RebuildRoute(); }
             if (player.Health < healthPrev - 0.01f) lastHurt = 0; else lastHurt += dt;

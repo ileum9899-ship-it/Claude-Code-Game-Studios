@@ -2,7 +2,8 @@
 // weapon wheel, gun shop, spray garage, hospital / police station, car radio, health regen.
 // Mirrors Core/WantedSystem.cs and Core/Shop.cs in the Unity build.
 CFG.gta = {
-  witnessDelay: 4, witnessRadius: 30, searchBase: 60, searchPerStar: 25, sightCar: 90, sightFoot: 70,
+  witnessDelay: 4, witnessRadius: 30, searchBase: 60, searchPerStar: 25, sightCar: 90, sightFoot: 70, nearCar: 25, nearFoot: 18,
+  evadeBase: 15, evadePerStar: 8, hearGunshot: 120, hearCrash: 60, sightingInterval: 10, recklessShare: 0.08,
   prices: { pistol: 400, smg: 1200, pistolAmmo: 60, smgAmmo: 120, armor: 300 }, sprayCost: 100, hospitalBill: 200,
   regenCap: 50, regenDelay: 5, regenRate: 3,
 };
@@ -23,18 +24,19 @@ const PLACES = (() => {
 const WANTED = (() => {
   const P = PLAYER, G = CFG.gta;
   const reports = [];
-  const st = { seen: false, searching: false, lastKnown: new THREE.Vector3(), anchor: false, searchPts: new Map() };
+  const st = { seen: false, searching: false, lastKnown: new THREE.Vector3(), anchor: false, searchPts: new Map(), lastVel: { x: 0, z: 0 }, lostTime: 0, sightingT: 0 };
+  const evadeTime = () => G.evadeBase + G.evadePerStar * P.stars;
   const radius = () => G.searchBase + G.searchPerStar * P.stars;
   function copCanSee() {
     const eye = new THREE.Vector3(P.pos.x, (P.car ? 1.0 : P.pos.y + 1.4), P.pos.z);
     // police see in a forward cone (and all around up close), never through buildings; the helicopter sees from above
     for (const v of VEHICLES) {
       if (v.type !== "police" || v.exploded || !v.ai || (v.ai.mode !== "police" && !(v.ai.mode === "parked" && P.stars > 0))) continue;
-      if (!PT.inView(v.pos.x, v.pos.z, v.yaw, eye.x, eye.z, 2.4, G.sightCar, 18)) continue;
+      if (!PT.inView(v.pos.x, v.pos.z, v.yaw, eye.x, eye.z, 2.4, G.sightCar, G.nearCar)) continue;
       if (raycastBoxes(v.pos.x, 1.4, v.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
     }
     for (const o of COMBAT.OFFICERS) {
-      if (o.down || !PT.inView(o.pos.x, o.pos.z, o.yaw, eye.x, eye.z, 2.8, G.sightFoot, 12)) continue;
+      if (o.down || !PT.inView(o.pos.x, o.pos.z, o.yaw, eye.x, eye.z, 2.8, G.sightFoot, G.nearFoot)) continue;
       if (raycastBoxes(o.pos.x, o.pos.y + 1.5, o.pos.z, eye.x, eye.y, eye.z) >= 0.999) return true;
     }
     return POLICE.heliSees();
@@ -55,12 +57,33 @@ const WANTED = (() => {
     st, radius,
     raise,
     // a crime: police witnesses count now, bystanders phone it in, nobody watching → nothing
-    crime(n, why, againstPolice = false) {
+    crime(n, why, againstPolice = false, policeOnly = false) {
       if (againstPolice || copCanSee()) { raise(n, why); return; }
+      if (policeOnly) return;
       if (witnessed()) { reports.push({ t: G.witnessDelay, n, why }); if (reports.length === 1) HUD.toast("누군가 휴대폰을 꺼냈습니다…", "warn"); }
     },
     get pending() { return reports.length; },
-    clear() { P.heat = 0; P.stars = 0; P.evade = 0; P.bust = 0; reports.length = 0; st.searching = false; },
+    clear() { P.heat = 0; P.stars = 0; P.evade = 0; P.bust = 0; reports.length = 0; st.searching = false; st.lostTime = 0; st.lastVel = { x: 0, z: 0 }; },
+    evadeTime,
+    // police learned where the player is without seeing them: re-centre the search, restart the escape
+    reveal(pos, how) {
+      if (P.stars === 0 || !st.searching) return;
+      st.lastKnown.set(pos.x, 0, pos.z); P.evade = 0; st.lostTime = 0;
+      HUD.toast(`경찰이 위치를 파악했습니다 · ${how}`, "warn");
+    },
+    // a noise at pos: any police unit within range hears it
+    heard(pos, range, how) {
+      if (P.stars === 0 || !st.searching) return;
+      const near = VEHICLES.some(v => v.type === "police" && !v.exploded && Math.hypot(v.pos.x - pos.x, v.pos.z - pos.z) < range) ||
+        COMBAT.OFFICERS.some(o => !o.down && Math.hypot(o.pos.x - pos.x, o.pos.z - pos.z) < range) ||
+        (POLICE.heli && Math.hypot(POLICE.heli.pos.x - pos.x, POLICE.heli.pos.z - pos.z) < range);
+      if (near) this.reveal(pos, how);
+    },
+    drift() {
+      const v = Math.hypot(st.lastVel.x, st.lastVel.z); if (v < 0.5) return { x: 0, z: 0 };
+      const reach = Math.min(v * Math.min(st.lostTime, 6), radius() * 0.7);
+      return { x: st.lastVel.x / v * reach, z: st.lastVel.z / v * reach };
+    },
     update(dt) {
       for (let k = reports.length - 1; k >= 0; k--) {
         const r = reports[k]; r.t -= dt; if (r.t > 0) continue;
@@ -69,12 +92,23 @@ const WANTED = (() => {
       st.seen = P.stars > 0 && copCanSee();
       if (P.stars === 0) { st.searching = false; P.bust = 0; return; }
       if (st.anchor) { st.lastKnown.copy(P.pos); st.anchor = false; }
-      if (st.seen) { st.lastKnown.copy(P.pos); st.searching = false; P.evade = 0; }
+      if (st.seen) {
+        st.lastKnown.copy(P.pos); st.searching = false; P.evade = 0; st.lostTime = 0;
+        st.lastVel = P.car ? { x: P.car.vel.x, z: P.car.vel.y } : { x: P.vel.x, z: P.vel.z };
+      }
       else {
-        st.searching = true;
+        st.searching = true; st.lostTime += dt;
+        // bystanders who see a wanted player call it in
+        st.sightingT -= dt;
+        if (st.sightingT <= 0) {
+          st.sightingT = 1;
+          const eye = new THREE.Vector3(P.pos.x, P.pos.y + 1.4, P.pos.z);
+          const spotter = PEDS.find(p => p.state === "walk" && p.pos.distanceTo(P.pos) < 25 && raycastBoxes(p.pos.x, 1.6, p.pos.z, eye.x, eye.y, eye.z) >= 0.999);
+          if (spotter && Math.random() < 0.5) { st.sightingT = G.sightingInterval; this.reveal(P.pos, "시민 제보"); }
+        }
         if (Math.hypot(P.pos.x - st.lastKnown.x, P.pos.z - st.lastKnown.z) > radius()) {
           P.evade += dt;
-          if (P.evade > CFG.wanted.evadeSeconds) { this.clear(); HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
+          if (P.evade > evadeTime()) { this.clear(); HUD.toast("경찰을 따돌렸습니다", "good"); AUDIO.win(); MISSIONS.onEvaded(); }
         }
       }
     },

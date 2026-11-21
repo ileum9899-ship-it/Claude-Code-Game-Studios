@@ -38,7 +38,15 @@ const PT = {
     if (d < near) return true; if (d > range) return false;
     return Math.abs(angDiff(yaw, Math.atan2(dx, dz))) <= fov / 2;
   },
-  searchWaypoint(lk, radius, unit, units, leg) {
+  searchWaypoint(lk, radius, unit, units, leg, drift) {
+    if (drift && leg >= 1 && Math.hypot(drift.x, drift.z) > 1e-3) {
+      let dx = drift.x, dz = drift.z; const dl = Math.hypot(dx, dz), maxD = radius * 0.7; if (dl > maxD) { dx *= maxD / dl; dz *= maxD / dl; }
+      const k = leg === 1 ? 0.6 : 1, cx = lk.x + dx * k, cz = lk.z + dz * k;
+      let p = leg === 1 ? new THREE.Vector3(cx, 0, cz) : PT.searchWaypoint({ x: cx, z: cz }, radius * 0.6, unit, units, Math.max(1, leg - 1));
+      const ox = p.x - lk.x, oz = p.z - lk.z, ol = Math.hypot(ox, oz), lim = radius * 0.9;
+      if (ol > lim) p = new THREE.Vector3(lk.x + ox / ol * lim, 0, lk.z + oz / ol * lim);
+      return p;
+    }
     units = Math.max(1, units); const sector = TAU / units, base = unit * sector;
     if (leg <= 0) { const a0 = base + sector * 0.5; return new THREE.Vector3(lk.x + Math.cos(a0) * 6, 0, lk.z + Math.sin(a0) * 6); }
     const frac = Math.min(0.9, 0.25 + 0.2 * (leg - 1)), ang = base + sector * (0.2 + 0.6 * (((leg - 1) * 0.618) % 1));
@@ -60,7 +68,7 @@ const POLICE = (() => {
     const lk = WANTED.st.lastKnown; let L = legs.get(u);
     if (!L) legs.set(u, L = { leg: 0, t: 0, ax: lk.x, az: lk.z });
     if (Math.hypot(L.ax - lk.x, L.az - lk.z) > 5) { L.ax = lk.x; L.az = lk.z; L.leg = 0; L.t = 0; } // new sighting: start over at it
-    const p = PT.searchWaypoint(lk, WANTED.radius(), unitIndex(u) % 4, Math.min(4, Math.max(1, units.size)), L.leg);
+    const p = PT.searchWaypoint(lk, WANTED.radius(), unitIndex(u) % 4, Math.min(4, Math.max(1, units.size)), L.leg, WANTED.drift());
     const at = u.pos || (u.g && u.pos) || null; L.t += 1 / 60;
     if ((at && Math.hypot(at.x - p.x, at.z - p.z) < 14) || L.t > 15) { L.leg++; L.t = 0; }
     return p;

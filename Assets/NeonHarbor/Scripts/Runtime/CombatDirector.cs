@@ -27,7 +27,7 @@ namespace NeonHarbor.Runtime
         public const float OfficerFov = 2.8f;
 
         private sealed class Pickup { public string Kind; public Transform Mesh; public float Respawn, Wait; public bool Permanent; }
-        private sealed class Fx { public Transform T; public Material M; public Vector3 Pos, Vel; public float Life, Age, Size, Grow; public int Kind; public bool Alive; }
+        private sealed class FxSprite { public Transform T; public Material M; public Vector3 Pos, Vel; public float Life, Age, Size, Grow, Shade = -1; public int Kind; public bool Alive; }
 
         private const int FxFire = 0, FxSmoke = 1, FxSpark = 2, FxFlash = 3, FxHit = 4;
         private readonly HarborConfig cfg;
@@ -40,7 +40,7 @@ namespace NeonHarbor.Runtime
         private readonly Transform root;
         private readonly System.Random rnd = new System.Random(31);
         private readonly List<Pickup> pickups = new List<Pickup>();
-        private readonly List<Fx> fx = new List<Fx>();
+        private readonly List<FxSprite> fx = new List<FxSprite>();
         private readonly List<(LineRenderer line, float age)> tracers = new List<(LineRenderer, float)>();
         private readonly Material fireMat, smokeMat, burnt;
         private readonly Mesh quad;
@@ -86,9 +86,23 @@ namespace NeonHarbor.Runtime
         private float R(float a, float b) { return a + (b - a) * (float)rnd.NextDouble(); }
 
         // ------------------------------------------------------------------ effects
+        /// <summary>Effect kinds for <see cref="Fx"/>.</summary>
+        public enum FxKind { Fire = 0, Smoke = 1, Spark = 2, Flash = 3, Hit = 4 }
+
+        /// <summary>Spawns a pooled effect sprite (crashes use this for debris and engine smoke); <paramref name="shade"/> darkens smoke.</summary>
+        public void Fx(FxKind kind, Vector3 pos, Vector3 vel, float life, float size, float grow = 1, float shade = -1)
+        {
+            Emit((int)kind, pos, vel, life, size, grow);
+            if (shade >= 0) { var f = fx[lastEmitted]; f.Shade = shade; }
+        }
+
+        /// <summary>A noise police may hear (position, hearing range, description).</summary>
+        public event Action<Vector3, float, string> Noise;
+        private int lastEmitted = -1;
+
         private void Emit(int kind, Vector3 pos, Vector3 vel, float life, float size, float grow = 1)
         {
-            Fx f = null;
+            FxSprite f = null;
             foreach (var e in fx) if (!e.Alive && e.Kind == kind) { f = e; break; }
             if (f == null)
             {
@@ -97,9 +111,10 @@ namespace NeonHarbor.Runtime
                 go.AddComponent<MeshFilter>().sharedMesh = quad;
                 var r = go.AddComponent<MeshRenderer>(); r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
                 r.material = kind == FxSmoke || kind == FxHit ? smokeMat : fireMat; // instance per sprite so each can fade
-                f = new Fx { T = go.transform, M = r.material, Kind = kind }; fx.Add(f);
+                f = new FxSprite { T = go.transform, M = r.material, Kind = kind }; fx.Add(f);
             }
-            f.Pos = pos; f.Vel = vel; f.Life = life; f.Age = 0; f.Size = size; f.Grow = grow; f.Alive = true; f.T.gameObject.SetActive(true);
+            f.Pos = pos; f.Vel = vel; f.Life = life; f.Age = 0; f.Size = size; f.Grow = grow; f.Alive = true; f.Shade = -1; f.T.gameObject.SetActive(true);
+            lastEmitted = fx.IndexOf(f);
         }
 
         private static readonly Color[] FxColor = { new Color(1f, 0.45f, 0.12f), new Color(0.2f, 0.2f, 0.22f), new Color(1f, 0.75f, 0.3f), new Color(1f, 0.8f, 0.45f), new Color(0.35f, 0.02f, 0.02f) };
@@ -116,7 +131,7 @@ namespace NeonHarbor.Runtime
                 if (f.Kind == FxSpark || f.Kind == FxHit) f.Vel.y -= 9 * dt; else if (f.Kind == FxSmoke) f.Vel *= 1 - dt * 0.6f;
                 f.T.SetPositionAndRotation(f.Pos, camRot);
                 f.T.localScale = Vector3.one * f.Size * (1 + (f.Grow - 1) * k);
-                var c = FxColor[f.Kind];
+                var c = f.Shade >= 0 ? new Color(f.Shade, f.Shade, f.Shade * 1.05f) : FxColor[f.Kind];
                 float strength = f.Kind == FxSmoke ? 0.55f * (1 - k) : f.Kind == FxHit ? 0.9f * (1 - k) : (1 - k) * (f.Kind == FxFlash ? 1.6f : 1.2f);
                 f.M.SetColor("_TintColor", new Color(c.r, c.g, c.b, Mathf.Clamp01(strength)));
             }
@@ -243,6 +258,7 @@ namespace NeonHarbor.Runtime
                 PlayerHurt?.Invoke(1);
             }
             ScarePeds(c, 60, 8);
+            Noise?.Invoke(c, cfg.HearGunshot * 1.3f, "폭발음");
             if (v.BurnByPlayer) Heat?.Invoke(1, "차량 폭발", false);
         }
 
@@ -530,6 +546,7 @@ namespace NeonHarbor.Runtime
                 default: Sparks(end); break;
             }
             ScarePeds(player.Position, 45);
+            Noise?.Invoke(player.Position, cfg.HearGunshot, "총소리");
             if (gunfireHeatCooldown <= 0) { Heat?.Invoke(1, "총기 사용", false); gunfireHeatCooldown = 6; }
         }
 

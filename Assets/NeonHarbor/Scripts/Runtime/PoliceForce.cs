@@ -69,7 +69,7 @@ namespace NeonHarbor.Runtime
             if (!units.TryGetValue(unit, out int idx)) { idx = units.Count; units[unit] = idx; }
             if (!legs.TryGetValue(unit, out var leg)) legs[unit] = leg = new SearchLeg { Anchor = wanted.LastKnown };
             if (Vec2.Distance(leg.Anchor, wanted.LastKnown) > 5) { leg.Anchor = wanted.LastKnown; leg.Leg = 0; leg.Timer = 0; } // new sighting: start over at it
-            var p = PoliceTactics.SearchWaypoint(wanted.LastKnown, wanted.SearchRadius, idx % 4, Mathf.Clamp(units.Count, 1, 4), leg.Leg);
+            var p = PoliceTactics.SearchWaypoint(wanted.LastKnown, wanted.SearchRadius, idx % 4, Mathf.Clamp(units.Count, 1, 4), leg.Leg, wanted.PredictedDrift);
             Vector3 at = unit is Vehicle v ? v.Position : unit is CombatDirector.Officer o ? o.Pos : heli != null && unit == (object)heli ? heli.Pos : Vector3.zero;
             leg.Timer += Time.deltaTime;
             if (Vector2.Distance(new Vector2(at.x, at.z), new Vector2(p.X, p.Y)) < 14 || leg.Timer > 15) { leg.Leg++; leg.Timer = 0; }

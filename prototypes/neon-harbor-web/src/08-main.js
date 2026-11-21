@@ -274,7 +274,7 @@ function frame(now) {
   resolveContacts(dt);
   for (const p of PEDS) updatePed(p, dt);
   const nearestCop = updateWanted(dt);
-  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT); COMBAT.update(dt, clockT);
+  MISSIONS.update(dt, clockT); PICKUPS.update(dt, clockT); COMBAT.update(dt, clockT); CRASH.update(dt);
   LIGHTS.update(clockT);
   manageSpawns(dt);
   const env = updateDay(dt);
@@ -300,7 +300,7 @@ function boot() {
   $("loading").hidden = true;
   requestAnimationFrame(t => { lastFrame = t; frame(t); });
   // test / tuning hooks
-  window.__nh = { POLICE, PT, PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
+  window.__nh = { CRASH, CRASH_MODEL, POLICE, PT, PLAYER, VEHICLES, PEDS, CAMERA, DAY, MISSIONS, COMBAT, INPUT, WANTED, GPS, UI, RADIO, PLACES, enterCar, nearestEnterable, addHeat, spawnPolice, CITY, setTime: t => { DAY.t = t; DAY.lastEnv = -1; },
     lineup() { // showroom for screenshots
       const x0 = SPAWN.x - 14, z = SPAWN.z + 1.5; let k = 0;
       for (const type of Object.keys(CAR_TYPES)) { const c = makeCar(type); c.pos.set(x0 + k * 5.4, 0.18, z); c.yaw = 0.6; c.ai = { mode: "parked" }; syncCar(c); VEHICLES.push(c); k++; }

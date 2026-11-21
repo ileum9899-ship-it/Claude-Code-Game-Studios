@@ -39,7 +39,7 @@ namespace NeonHarbor.Runtime
         public sealed class Parts
         {
             public Transform Root, Body; public Transform[] WheelPivots = new Transform[4], WheelSpins = new Transform[4];
-            public MeshRenderer[] Tails = new MeshRenderer[2]; public MeshRenderer SirenRed, SirenBlue; public Transform Seat;
+            public MeshRenderer[] Heads = new MeshRenderer[2], Tails = new MeshRenderer[2]; public MeshRenderer SirenRed, SirenBlue; public Transform Seat;
         }
 
         /// <summary>Builds a car GameObject.</summary>
@@ -59,8 +59,8 @@ namespace NeonHarbor.Runtime
             Part(body, cube, mats.Chrome, new Vector3(0, yb + 0.1f, -L - 0.06f), new Vector3(spec.Width * 0.94f, 0.2f, 0.14f));
             Part(body, cube, mats.Plain(new Color(0.9f, 0.89f, 0.85f)), new Vector3(0, yb + 0.34f, -L - 0.09f), new Vector3(spec.Width * 0.36f, 0.14f, 0.02f));
             Part(body, cube, mats.Chrome, new Vector3(0, hy - 0.08f, L + 0.09f), new Vector3(spec.Width * 0.5f, 0.2f, 0.04f));
-            Part(body, cube, mats.HeadLight, new Vector3(-W + 0.36f, hy, L + 0.1f), new Vector3(0.42f, 0.13f, 0.05f), shadows: false);
-            Part(body, cube, mats.HeadLight, new Vector3(W - 0.36f, hy, L + 0.1f), new Vector3(0.42f, 0.13f, 0.05f), shadows: false);
+            parts.Heads[0] = Part(body, cube, mats.HeadLight, new Vector3(-W + 0.36f, hy, L + 0.1f), new Vector3(0.42f, 0.13f, 0.05f), shadows: false);
+            parts.Heads[1] = Part(body, cube, mats.HeadLight, new Vector3(W - 0.36f, hy, L + 0.1f), new Vector3(0.42f, 0.13f, 0.05f), shadows: false);
             parts.Tails[0] = Part(body, cube, mats.TailLight, new Vector3(-W + 0.36f, hy + 0.05f, -L - 0.1f), new Vector3(0.46f, 0.14f, 0.05f), shadows: false);
             parts.Tails[1] = Part(body, cube, mats.TailLight, new Vector3(W - 0.36f, hy + 0.05f, -L - 0.1f), new Vector3(0.46f, 0.14f, 0.05f), shadows: false);
             float mirY = (m.Belt + spec.Profile[2].y) / 2 + 0.05f, mirZ = spec.Profile.Length > 4 ? spec.Profile[4].x * 0.95f : 0.8f;
