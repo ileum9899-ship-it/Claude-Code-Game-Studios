@@ -106,7 +106,7 @@ namespace NeonHarbor.Runtime
             Crashes.Noise += pos => Services.Heard(pos, Config.HearCrash, "충돌음");
             Crashes.TrafficOffence += why => Services.Crime(0.5f, why, false, true);
             Crashes.PlayerCrash += v => Camera.Shake = Mathf.Max(Camera.Shake, v); // sound comes from CarImpact / World.Crash
-            Crashes.Ejected += injury => { Player.Damage(injury); hud.Hurt(1); hud.Banner("앞유리 밖으로 튕겨 나갔습니다!", "", new Color(1f, 0.3f, 0.37f)); };
+            Crashes.Ejected += injury => { Player.Damage(injury); hud.Hurt(1); hud.Banner("튕겨 나갔다!", "앞유리 밖으로", new Color(1f, 0.3f, 0.37f)); };
             Wanted.Revealed += how => hud.Toast("경찰이 위치를 파악했습니다 · " + how, warn);
             Police.HeliShot += () => sound.Shot(true, 0.5f);
             Police.HeliHit += dmg => { Player.Damage(dmg); hud.Hurt(0.6f); };

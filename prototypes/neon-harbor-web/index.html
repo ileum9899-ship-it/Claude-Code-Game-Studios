@@ -3303,7 +3303,7 @@ const CRASH = (() => {
     P.yaw = car.yaw;
     P.downTimer = 0; P.knock(f.x * speed * 0.55, f.y * speed * 0.55, 0);
     P.health -= CRASH_MODEL.injury(speed); HUD.hurt(1);
-    HUD.big("앞유리 밖으로 튕겨 나갔습니다!", "", "bad");
+    HUD.big("튕겨 나갔다!", "앞유리 밖으로", "bad");
   }
 
   // one impact on one car; (nx, nz) is the contact normal pointing INTO this car
