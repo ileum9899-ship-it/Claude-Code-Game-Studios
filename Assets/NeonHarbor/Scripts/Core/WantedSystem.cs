@@ -11,7 +11,8 @@ namespace NeonHarbor.Core
     /// <item>While any cop can see the player, the last known position follows them.</item>
     /// <item>Out of sight, the stars flash and police search a circle around the last known
     /// position (radius grows with stars). Leave the circle and stay unseen for
-    /// <see cref="HarborConfig.EvadeSeconds"/> to lose them; being spotted again re-centres it.</item>
+    /// <see cref="EvadeTime"/> (longer with more stars) to lose them; being spotted, heard
+    /// (gunfire, crashes) or reported by a bystander re-centres it.</item>
     /// <item>A nearly stopped player next to a cop for <see cref="HarborConfig.BustSeconds"/> is arrested.</item>
     /// </list>
     /// </summary>
@@ -37,6 +38,24 @@ namespace NeonHarbor.Core
         public bool Searching { get; private set; }
         /// <summary>Where police last saw the player (centre of the search area).</summary>
         public Vec2 LastKnown { get; private set; }
+        /// <summary>Player velocity when last seen (police search in that direction).</summary>
+        public Vec2 LastVelocity { get; private set; }
+        /// <summary>Seconds since police lost sight.</summary>
+        public float LostTime { get; private set; }
+        /// <summary>Seconds outside the search area needed to escape at the current stars.</summary>
+        public float EvadeTime => cfg.EvadeSecondsBase + cfg.EvadeSecondsPerStar * Stars;
+        /// <summary>Where police think the player went: the last known position pushed along the last velocity.</summary>
+        public Vec2 PredictedDrift
+        {
+            get
+            {
+                float v = LastVelocity.Length; if (v < 0.5f) return new Vec2(0, 0);
+                float reach = Math.Min(v * Math.Min(LostTime, 6f), SearchRadius * 0.7f);
+                return LastVelocity.Normalized * reach;
+            }
+        }
+        /// <summary>Raised when police learn the player's position without seeing them (noise, bystander).</summary>
+        public event Action<string> Revealed;
         /// <summary>Radius of the search area (m).</summary>
         public float SearchRadius => cfg.SearchRadiusBase + cfg.SearchRadiusPerStar * Stars;
         /// <summary>Witness reports still being phoned in.</summary>
@@ -78,11 +97,23 @@ namespace NeonHarbor.Core
         }
 
         /// <summary>Clears everything (respawn, spray garage).</summary>
-        public void Clear() { Heat = 0; Stars = 0; EvadeTimer = 0; BustTimer = 0; Searching = false; reports.Clear(); }
+        public void Clear() { Heat = 0; Stars = 0; EvadeTimer = 0; BustTimer = 0; Searching = false; LostTime = 0; LastVelocity = new Vec2(0, 0); reports.Clear(); }
+
+        /// <summary>
+        /// Police learn where the player is without seeing them (gunfire or a crash they heard, a
+        /// bystander's call): the search re-centres there and the escape timer restarts.
+        /// </summary>
+        public void Reveal(Vec2 position, string how)
+        {
+            if (Stars == 0 || !Searching) return;
+            LastKnown = position; EvadeTimer = 0; LostTime = 0;
+            Revealed?.Invoke(how);
+        }
 
         /// <summary>Advances witness calls, the search and the arrest timer.</summary>
-        public void Tick(float dt, bool seenByPolice, Vec2 player, float playerSpeed, float nearestCopDistance)
+        public void Tick(float dt, bool seenByPolice, Vec2 player, Vec2 playerVelocity, float nearestCopDistance)
         {
+            float playerSpeed = playerVelocity.Length;
             for (int k = reports.Count - 1; k >= 0; k--)
             {
                 var r = reports[k]; r.delay -= dt;
@@ -96,15 +127,15 @@ namespace NeonHarbor.Core
             if (needsAnchor) { LastKnown = player; needsAnchor = false; } // the report says where you are
             if (seenByPolice)
             {
-                LastKnown = player; Searching = false; EvadeTimer = 0;
+                LastKnown = player; LastVelocity = playerVelocity; Searching = false; EvadeTimer = 0; LostTime = 0;
             }
             else
             {
-                Searching = true;
+                Searching = true; LostTime += dt;
                 if (Vec2.Distance(player, LastKnown) > SearchRadius)
                 {
                     EvadeTimer += dt;
-                    if (EvadeTimer > cfg.EvadeSeconds) { Clear(); Evaded?.Invoke(); return; }
+                    if (EvadeTimer > EvadeTime) { Clear(); Evaded?.Invoke(); return; }
                 }
             }
 

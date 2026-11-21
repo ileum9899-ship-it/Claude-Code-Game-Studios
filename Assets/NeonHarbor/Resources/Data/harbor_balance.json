@@ -37,7 +37,7 @@
   "heat_cop_hit": 1,
   "max_stars": 5,
   "evade_radius": 85,
-  "evade_seconds": 9,
+  "evade_seconds": 15,
   "bust_radius": 7,
   "bust_seconds": 2.5,
   "bust_fine": 0.1,
@@ -70,5 +70,12 @@
   "hospital_bill": 200,
   "regen_cap": 50,
   "regen_delay": 5,
-  "regen_rate": 3
+  "regen_rate": 3,
+  "evade_seconds_per_star": 8,
+  "cop_near_sight_car": 25,
+  "cop_near_sight_foot": 18,
+  "hear_gunshot": 120,
+  "hear_crash": 60,
+  "sighting_interval": 10,
+  "reckless_share": 0.08
 }

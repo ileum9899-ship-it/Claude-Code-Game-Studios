@@ -147,6 +147,25 @@ namespace NeonHarbor.Core
         /// </summary>
         public static Vec2 SearchWaypoint(Vec2 lastKnown, float radius, int unit, int units, int leg)
         {
+            return SearchWaypoint(lastKnown, radius, unit, units, leg, new Vec2(0, 0));
+        }
+
+        /// <summary>
+        /// As above, but after the first leg the spiral is centred on where the target was heading
+        /// (<paramref name="drift"/> from the last known position, kept inside the circle).
+        /// </summary>
+        public static Vec2 SearchWaypoint(Vec2 lastKnown, float radius, int unit, int units, int leg, Vec2 drift)
+        {
+            if (leg >= 1 && drift.Length > 1e-3f)
+            {
+                float maxDrift = radius * 0.7f;
+                if (drift.Length > maxDrift) drift = drift.Normalized * maxDrift;
+                var centre = lastKnown + drift * (leg == 1 ? 0.6f : 1f);
+                var p = SearchWaypoint(centre, radius * 0.6f, unit, units, Math.Max(1, leg - 1), new Vec2(0, 0));
+                if (leg == 1) p = centre; // first, look where they were heading
+                var off = p - lastKnown; float lim = radius * 0.9f;
+                return off.Length > lim ? lastKnown + off.Normalized * lim : p;
+            }
             units = Math.Max(1, units);
             float sector = Mathx.Tau / units, baseAngle = unit * sector;
             if (leg <= 0)

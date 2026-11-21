@@ -28,10 +28,10 @@ namespace NeonHarbor.Tests
             var c = Cfg(); var w = new WantedSystem(c); bool evaded = false;
             w.Evaded += () => evaded = true;
             w.AddHeat(2, "x");
-            w.Tick(0.1f, true, Origin, 10, 50); // seen at the origin
+            w.Tick(0.1f, true, Origin, new Vec2(10, 0), 50); // seen at the origin
             var far = new Vec2(w.SearchRadius + 20, 0);
 
-            for (float t = 0; t < c.EvadeSeconds + 0.5f; t += 0.1f) w.Tick(0.1f, false, far, 10, 200);
+            for (float t = 0; t < w.EvadeTime + 0.5f; t += 0.1f) w.Tick(0.1f, false, far, new Vec2(10, 0), 200);
 
             Assert.IsTrue(evaded); Assert.AreEqual(0, w.Stars);
         }
@@ -40,9 +40,9 @@ namespace NeonHarbor.Tests
         public void HidingInsideTheSearchArea_DoesNotClearStars()
         {
             var c = Cfg(); var w = new WantedSystem(c);
-            w.AddHeat(1, "x"); w.Tick(0.1f, true, Origin, 0, 50);
+            w.AddHeat(1, "x"); w.Tick(0.1f, true, Origin, new Vec2(0, 0), 50);
 
-            for (float t = 0; t < c.EvadeSeconds * 3; t += 0.1f) w.Tick(0.1f, false, new Vec2(10, 0), 0, 200);
+            for (float t = 0; t < w.EvadeTime * 3; t += 0.1f) w.Tick(0.1f, false, new Vec2(10, 0), new Vec2(0, 0), 200);
 
             Assert.IsTrue(w.Searching); Assert.AreEqual(1, w.Stars); Assert.AreEqual(0, w.EvadeTimer);
         }
@@ -51,12 +51,12 @@ namespace NeonHarbor.Tests
         public void BeingSpotted_RecentresSearch_AndResetsEvade()
         {
             var c = Cfg(); var w = new WantedSystem(c);
-            w.AddHeat(1, "x"); w.Tick(0.1f, true, Origin, 10, 50);
+            w.AddHeat(1, "x"); w.Tick(0.1f, true, Origin, new Vec2(10, 0), 50);
             var far = new Vec2(w.SearchRadius + 10, 0);
-            w.Tick(c.EvadeSeconds - 1, false, far, 10, 200);
+            w.Tick(w.EvadeTime - 1, false, far, new Vec2(10, 0), 200);
             Assert.Greater(w.EvadeTimer, 0);
 
-            w.Tick(0.1f, true, far, 10, 40);
+            w.Tick(0.1f, true, far, new Vec2(10, 0), 40);
 
             Assert.AreEqual(0, w.EvadeTimer); Assert.AreEqual(far.X, w.LastKnown.X); Assert.IsFalse(w.Searching);
         }
@@ -77,9 +77,9 @@ namespace NeonHarbor.Tests
 
             Assert.IsFalse(w.ReportCrime(1, "a", false, false));
             Assert.IsTrue(w.ReportCrime(1, "b", false, true));
-            w.Tick(c.WitnessDelay - 0.5f, false, Origin, 0, 999);
+            w.Tick(c.WitnessDelay - 0.5f, false, Origin, new Vec2(0, 0), 999);
             Assert.AreEqual(0, w.Stars);
-            w.Tick(1f, false, new Vec2(5, 5), 0, 999);
+            w.Tick(1f, false, new Vec2(5, 5), new Vec2(0, 0), 999);
             Assert.AreEqual(1, w.Stars); Assert.AreEqual("b", reported);
             Assert.AreEqual(5f, w.LastKnown.X, "the call reports the player's position");
         }
@@ -99,9 +99,9 @@ namespace NeonHarbor.Tests
             w.Busted += () => busted = true;
             w.AddHeat(1, "x");
 
-            for (float t = 0; t < c.BustSeconds * 2; t += 0.1f) w.Tick(0.1f, true, Origin, 15, 3);
+            for (float t = 0; t < c.BustSeconds * 2; t += 0.1f) w.Tick(0.1f, true, Origin, new Vec2(15, 0), 3);
             Assert.IsFalse(busted);
-            for (float t = 0; t < c.BustSeconds + 0.3f; t += 0.1f) w.Tick(0.1f, true, Origin, 0.5f, 3);
+            for (float t = 0; t < c.BustSeconds + 0.3f; t += 0.1f) w.Tick(0.1f, true, Origin, new Vec2(0.5f, 0), 3);
             Assert.IsTrue(busted);
         }
 

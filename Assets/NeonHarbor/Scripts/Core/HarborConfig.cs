@@ -95,8 +95,8 @@ namespace NeonHarbor.Core
         public int MaxStars = 5;
         /// <summary>Distance (m) every cop must be beyond for the evade timer to run.</summary>
         public float EvadeRadius = 85f;
-        /// <summary>Seconds out of reach to lose the wanted level.</summary>
-        public float EvadeSeconds = 9f;
+        /// <summary>Seconds outside the search area, unseen, needed to lose the wanted level: base + per star.</summary>
+        public float EvadeSecondsBase = 15f, EvadeSecondsPerStar = 8f;
         /// <summary>Distance (m) at which a nearly stopped player is being arrested.</summary>
         public float BustRadius = 7f;
         /// <summary>Seconds needed to complete an arrest.</summary>
@@ -109,8 +109,16 @@ namespace NeonHarbor.Core
         public float WitnessRadius = 30f;
         /// <summary>Police search radius (m) at zero stars, plus per star.</summary>
         public float SearchRadiusBase = 60f, SearchRadiusPerStar = 25f;
-        /// <summary>How far police in cars / on foot can see the player (m).</summary>
+        /// <summary>How far (m) police in cars / on foot can see the player (m).</summary>
         public float CopSightCar = 90f, CopSightFoot = 70f;
+        /// <summary>Within this distance police notice the player in any direction (m).</summary>
+        public float CopNearSightCar = 25f, CopNearSightFoot = 18f;
+        /// <summary>Police hear gunfire / a crash this far away (m) and move the search there.</summary>
+        public float HearGunshot = 120f, HearCrash = 60f;
+        /// <summary>While police search, a bystander who sees the player calls it in at most this often (s).</summary>
+        public float SightingInterval = 10f;
+        /// <summary>Share of traffic drivers who speed and run red lights.</summary>
+        public float RecklessShare = 0.08f;
         /// <summary>Police top-speed multiplier.</summary>
         public float CopSpeed = 1.25f;
         /// <summary>Police cars per star.</summary>
@@ -163,9 +171,9 @@ namespace NeonHarbor.Core
         public float car_accel, car_reverse_accel, car_brake, car_max_speed, car_max_reverse, car_drag, car_rolling, car_grip, car_handbrake_grip, car_steer_max, car_steer_speed, car_wheelbase;
         public int traffic_count, parked_count; public float traffic_cruise, traffic_turn_speed, follow_gap, light_cycle, light_yellow;
         public int ped_count; public float ped_radius, ped_speed, ped_flee_speed, ped_hit_speed;
-        public float witness_delay, witness_radius, search_radius_base, search_radius_per_star, cop_sight_car, cop_sight_foot;
+        public float witness_delay, witness_radius, search_radius_base, search_radius_per_star, cop_sight_car, cop_sight_foot, cop_near_sight_car, cop_near_sight_foot, hear_gunshot, hear_crash, sighting_interval, reckless_share;
         public int price_pistol, price_smg, price_pistol_ammo, price_smg_ammo, price_armor, spray_cost, hospital_bill; public float regen_cap, regen_delay, regen_rate;
-        public float heat_ped_hit, heat_carjack, heat_cop_hit; public int max_stars; public float evade_radius, evade_seconds, bust_radius, bust_seconds, bust_fine, cop_speed; public int cops_per_star, max_cops;
+        public float heat_ped_hit, heat_carjack, heat_cop_hit; public int max_stars; public float evade_radius, evade_seconds, evade_seconds_per_star, bust_radius, bust_seconds, bust_fine, cop_speed; public int cops_per_star, max_cops;
         public int courier_reward_min, courier_reward_max, race_reward, evade_reward; public float time_per_meter, time_base; public int cash_pickups, cash_min, cash_max, start_money;
         public float day_length;
 #pragma warning restore 0649
@@ -183,13 +191,14 @@ namespace NeonHarbor.Core
             F(ref c.FollowGap, follow_gap); F(ref c.LightCycle, light_cycle); F(ref c.LightYellow, light_yellow);
             I(ref c.PedCount, ped_count); F(ref c.PedRadius, ped_radius); F(ref c.PedSpeed, ped_speed); F(ref c.PedFleeSpeed, ped_flee_speed); F(ref c.PedHitSpeed, ped_hit_speed);
             F(ref c.HeatPedHit, heat_ped_hit); F(ref c.HeatCarjack, heat_carjack); F(ref c.HeatCopHit, heat_cop_hit); I(ref c.MaxStars, max_stars);
-            F(ref c.EvadeRadius, evade_radius); F(ref c.EvadeSeconds, evade_seconds); F(ref c.BustRadius, bust_radius); F(ref c.BustSeconds, bust_seconds);
+            F(ref c.EvadeRadius, evade_radius); F(ref c.EvadeSecondsBase, evade_seconds); F(ref c.EvadeSecondsPerStar, evade_seconds_per_star); F(ref c.BustRadius, bust_radius); F(ref c.BustSeconds, bust_seconds);
             F(ref c.BustFine, bust_fine); F(ref c.CopSpeed, cop_speed); I(ref c.CopsPerStar, cops_per_star); I(ref c.MaxCops, max_cops);
             I(ref c.CourierRewardMin, courier_reward_min); I(ref c.CourierRewardMax, courier_reward_max); I(ref c.RaceReward, race_reward); I(ref c.EvadeReward, evade_reward);
             F(ref c.TimePerMeter, time_per_meter); F(ref c.TimeBase, time_base); I(ref c.CashPickups, cash_pickups); I(ref c.CashMin, cash_min); I(ref c.CashMax, cash_max);
             I(ref c.StartMoney, start_money); F(ref c.DayLength, day_length);
             F(ref c.WitnessDelay, witness_delay); F(ref c.WitnessRadius, witness_radius); F(ref c.SearchRadiusBase, search_radius_base); F(ref c.SearchRadiusPerStar, search_radius_per_star);
-            F(ref c.CopSightCar, cop_sight_car); F(ref c.CopSightFoot, cop_sight_foot);
+            F(ref c.CopSightCar, cop_sight_car); F(ref c.CopSightFoot, cop_sight_foot); F(ref c.CopNearSightCar, cop_near_sight_car); F(ref c.CopNearSightFoot, cop_near_sight_foot);
+            F(ref c.HearGunshot, hear_gunshot); F(ref c.HearCrash, hear_crash); F(ref c.SightingInterval, sighting_interval); F(ref c.RecklessShare, reckless_share);
             I(ref c.PricePistol, price_pistol); I(ref c.PriceSmg, price_smg); I(ref c.PricePistolAmmo, price_pistol_ammo); I(ref c.PriceSmgAmmo, price_smg_ammo); I(ref c.PriceArmor, price_armor);
             I(ref c.SprayCost, spray_cost); I(ref c.HospitalBill, hospital_bill); F(ref c.RegenCap, regen_cap); F(ref c.RegenDelay, regen_delay); F(ref c.RegenRate, regen_rate);
             return c;
